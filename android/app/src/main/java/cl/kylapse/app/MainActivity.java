@@ -26,7 +26,14 @@ import android.webkit.WebViewClient;
 import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewFeature;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayDeque;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -100,6 +107,7 @@ public class MainActivity extends Activity {
         mobileUA = chromeMobileUserAgent(defUA);
         desktopUA = desktopUserAgent(defUA);
         s.setUserAgentString(mobileUA);
+        currentUA = mobileUA;
         try {
             if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST))
                 WebSettingsCompat.setRequestedWithHeaderOriginAllowList(s, Collections.emptySet());
@@ -127,12 +135,15 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri u = req.getUrl();
                 noteAuth(u);
-                Uri fixed = fixAuth(u);
-                if (fixed != null) { view.loadUrl(fixed.toString()); return true; }
                 String h = u.getHost();
                 if (h != null && (h.equals(HOST) || h.endsWith(".synapsetimed.cl"))) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
                 return true;
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
+                return fetchWithoutAppHeader(req);
             }
 
             @Override
@@ -195,6 +206,98 @@ public class MainActivity extends Activity {
                 fail(sb.toString());
             }
         });
+    }
+
+    private volatile String currentUA = "";
+
+    /**
+     * Android agrega a cada página la cabecera "X-Requested-With: cl.kylapse.app". Al verla, Synapse arma
+     * mal el inicio de sesión (sin nonce) y falla. Aquí la app pide ella misma las páginas principales de
+     * Synapse, con las mismas cookies y cabeceras pero sin esa marca. Si algo falla, deja que WebView siga normal.
+     */
+    private WebResourceResponse fetchWithoutAppHeader(WebResourceRequest req) {
+        try {
+            if (!req.isForMainFrame() || !"GET".equalsIgnoreCase(req.getMethod())) return null;
+            Uri u = req.getUrl();
+            if (!HOST.equals(u.getHost())) return null;
+            String path = u.getPath() == null ? "" : u.getPath().toLowerCase();
+            if (!(path.startsWith("/workflowui") || path.startsWith("/imageviewer"))) return null;
+
+            String url = u.toString();
+            HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+            c.setInstanceFollowRedirects(false);
+            c.setConnectTimeout(20000);
+            c.setReadTimeout(30000);
+            for (Map.Entry<String, String> h : req.getRequestHeaders().entrySet()) {
+                String k = h.getKey();
+                if (k == null || k.equalsIgnoreCase("X-Requested-With") || k.equalsIgnoreCase("Accept-Encoding")
+                        || k.equalsIgnoreCase("Cookie") || k.equalsIgnoreCase("User-Agent")) continue;
+                c.setRequestProperty(k, h.getValue());
+            }
+            c.setRequestProperty("User-Agent", currentUA);
+            CookieManager cm = CookieManager.getInstance();
+            String ck = cm.getCookie(url);
+            if (ck != null && !ck.isEmpty()) c.setRequestProperty("Cookie", ck);
+
+            int code = c.getResponseCode();
+            Map<String, List<String>> hf = c.getHeaderFields();
+            for (Map.Entry<String, List<String>> e : hf.entrySet()) {
+                if (e.getKey() != null && e.getKey().equalsIgnoreCase("Set-Cookie"))
+                    for (String v : e.getValue()) cm.setCookie(url, v);
+            }
+            cm.flush();
+
+            Map<String, String> noCache = new HashMap<>();
+            noCache.put("Cache-Control", "no-store");
+            if (code >= 300 && code < 400) {
+                String loc = c.getHeaderField("Location");
+                c.disconnect();
+                if (loc == null) return null;
+                String abs = new URL(new URL(url), loc).toString();
+                noteAuth(Uri.parse(abs));
+                String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width\"></head>"
+                    + "<body style=\"background:#122221\"><script>location.replace(" + jsString(abs) + ");</script></body></html>";
+                return new WebResourceResponse("text/html", "utf-8", 200, "OK", noCache,
+                    new ByteArrayInputStream(html.getBytes("UTF-8")));
+            }
+
+            String ct = c.getContentType();
+            String mime = "text/html", charset = "utf-8";
+            if (ct != null) {
+                String[] parts = ct.split(";");
+                mime = parts[0].trim();
+                for (String p : parts) {
+                    p = p.trim();
+                    if (p.toLowerCase().startsWith("charset=")) charset = p.substring(8).replace("\"", "").trim();
+                }
+            }
+            Map<String, String> rh = new HashMap<>();
+            for (Map.Entry<String, List<String>> e : hf.entrySet()) {
+                String k = e.getKey();
+                if (k == null || e.getValue().isEmpty()) continue;
+                String kl = k.toLowerCase();
+                if (kl.equals("set-cookie") || kl.equals("content-length") || kl.equals("content-encoding")
+                        || kl.equals("transfer-encoding") || kl.equals("connection")) continue;
+                rh.put(k, e.getValue().get(0));
+            }
+            InputStream is = code >= 400 ? c.getErrorStream() : c.getInputStream();
+            if (is == null) is = new ByteArrayInputStream(new byte[0]);
+            String reason = c.getResponseMessage();
+            if (reason == null || reason.trim().isEmpty()) reason = "OK";
+            return new WebResourceResponse(mime, charset, code, reason, rh, is);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String jsString(String v) {
+        StringBuilder sb = new StringBuilder("\"");
+        for (char ch : v.toCharArray()) {
+            if (ch == '"' || ch == '\\') sb.append('\\').append(ch);
+            else if (ch < 0x20 || ch == '<' || ch == '>') sb.append(String.format("\\u%04x", (int) ch));
+            else sb.append(ch);
+        }
+        return sb.append('"').toString();
     }
 
     /** Guarda los parámetros de la solicitud de inicio de sesión (sin claves ni tokens) para el diagnóstico. */
@@ -264,7 +367,7 @@ public class MainActivity extends Activity {
         String path = u.getPath() == null ? "" : u.getPath().toLowerCase();
         if (HOST.equals(u.getHost()) && path.startsWith("/workflowui")) {
             WebSettings s = web.getSettings();
-            if (!desktopUA.equals(s.getUserAgentString())) s.setUserAgentString(desktopUA);
+            if (!desktopUA.equals(s.getUserAgentString())) { s.setUserAgentString(desktopUA); currentUA = desktopUA; }
         }
     }
 
