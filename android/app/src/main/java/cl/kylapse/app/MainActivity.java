@@ -23,7 +23,12 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
+
 import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +53,7 @@ public class MainActivity extends Activity {
     private final ArrayDeque<String> console = new ArrayDeque<>();
     private final Runnable check = this::checkBlank;
     private String authInfo = "";
+    private String mobileUA, desktopUA;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable slow = () -> {
         if (status.getVisibility() == View.VISIBLE && !failed)
@@ -88,7 +94,16 @@ public class MainActivity extends Activity {
         s.setJavaScriptCanOpenWindowsAutomatically(true);
         s.setSupportMultipleWindows(false);
         s.setMediaPlaybackRequiresUserGesture(false);
-        s.setUserAgentString(desktopUserAgent(s.getUserAgentString()));
+        // Para iniciar sesión la app se presenta como Chrome de teléfono (igual que el Chrome que sí funciona);
+        // ya dentro de Synapse cambia a modo escritorio para el visor.
+        String defUA = s.getUserAgentString();
+        mobileUA = chromeMobileUserAgent(defUA);
+        desktopUA = desktopUserAgent(defUA);
+        s.setUserAgentString(mobileUA);
+        try {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST))
+                WebSettingsCompat.setRequestedWithHeaderOriginAllowList(s, Collections.emptySet());
+        } catch (Throwable ignored) { }
 
         CookieManager cm = CookieManager.getInstance();
         cm.setAcceptCookie(true);
@@ -128,6 +143,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 if (!failed) status.setVisibility(View.GONE);
+                switchToDesktopIfInside(url);
                 inject(url);
                 handler.removeCallbacks(check);
                 handler.postDelayed(check, 5000);
@@ -174,7 +190,7 @@ public class MainActivity extends Activity {
                 for (String c : console) sb.append("\n• ").append(c);
                 if (console.isEmpty()) sb.append("\n(sin errores en consola)");
                 if (!authInfo.isEmpty()) sb.append("\n\nSolicitud:\n").append(authInfo);
-                sb.append("\n\nIdioma: ").append(java.util.Locale.getDefault().toLanguageTag());
+                sb.append("\n\nIdioma: ").append(java.util.Locale.getDefault().toLanguageTag()).append("\nNavegador: ").append(web.getSettings().getUserAgentString());
                 fail(sb.toString());
             }
         });
@@ -192,6 +208,7 @@ public class MainActivity extends Activity {
             sb.append(k).append(show ? "=" + v : "(" + v.length() + ")").append("  ");
         }
         authInfo = (authInfo.isEmpty() ? "" : authInfo + "\n→ ") + sb.toString().trim() + "  [largo URL " + u.toString().length() + "]";
+        if (authInfo.length() > 3000) authInfo = authInfo.substring(authInfo.length() - 3000);
     }
 
     /**
@@ -206,7 +223,9 @@ public class MainActivity extends Activity {
         String loc = u.getQueryParameter("ui_locales");
         boolean dropPrompt = "none".equalsIgnoreCase(prompt);
         boolean fixLoc = loc != null && loc.length() > 10;
-        if (!dropPrompt && !fixLoc) return null;
+        String rt = u.getQueryParameter("response_type");
+        boolean addNonce = rt != null && rt.contains("id_token") && u.getQueryParameter("nonce") == null;
+        if (!dropPrompt && !fixLoc && !addNonce) return null;
         Uri.Builder b = u.buildUpon().clearQuery();
         for (String k : u.getQueryParameterNames()) {
             if (dropPrompt && k.equals("prompt")) continue;
@@ -215,7 +234,8 @@ public class MainActivity extends Activity {
                 b.appendQueryParameter(k, v);
             }
         }
-        authInfo += "\n(app: " + (dropPrompt ? "quitó prompt=none " : "") + (fixLoc ? "acortó ui_locales" : "") + ")";
+        if (addNonce) b.appendQueryParameter("nonce", UUID.randomUUID().toString().replace("-", ""));
+        authInfo += "\n(app: " + (dropPrompt ? "quitó prompt=none " : "") + (fixLoc ? "acortó ui_locales " : "") + (addNonce ? "agregó nonce" : "") + ")";
         return b.build();
     }
 
@@ -246,6 +266,23 @@ public class MainActivity extends Activity {
         boolean worklist = path.startsWith("/workflowui") && !path.contains("powerjacket");
         boolean viewer = path.startsWith("/imageviewer/");
         if (worklist || viewer) web.evaluateJavascript(LOADER, null);
+    }
+
+    private void switchToDesktopIfInside(String url) {
+        if (url == null) return;
+        Uri u = Uri.parse(url);
+        String path = u.getPath() == null ? "" : u.getPath().toLowerCase();
+        if (HOST.equals(u.getHost()) && path.startsWith("/workflowui")) {
+            WebSettings s = web.getSettings();
+            if (!desktopUA.equals(s.getUserAgentString())) s.setUserAgentString(desktopUA);
+        }
+    }
+
+    /** Como Chrome en un teléfono Android, sin las marcas de "app con navegador integrado". */
+    private static String chromeMobileUserAgent(String ua) {
+        Matcher m = Pattern.compile("Chrome/([0-9]+)").matcher(ua == null ? "" : ua);
+        String major = m.find() ? m.group(1) : "120";
+        return "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" + major + ".0.0.0 Mobile Safari/537.36";
     }
 
     /** Igual que "Sitio de escritorio" de Chrome: Synapse se ve y funciona como en el computador. */
