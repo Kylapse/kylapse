@@ -153,7 +153,7 @@ public class MainActivity extends Activity {
     /** Si la página quedó vacía (pantalla negra), muestra en pantalla qué pasó para poder diagnosticarlo. */
     private void checkBlank() {
         if (failed) return;
-        web.evaluateJavascript("(function(){var b=document.body;return [location.pathname,document.title,b?b.innerText.trim().length:-1,b?b.innerHTML.length:-1,document.querySelectorAll('iframe').length,innerWidth+'x'+innerHeight].join(' | ')})()", r -> {
+        web.evaluateJavascript("(function(){var b=document.body;var f=document.forms[0],fa='';try{fa=f?new URL(f.action,location.href).pathname:''}catch(e){};var hid=Array.prototype.map.call(document.querySelectorAll('input'),function(i){return i.name+(/^(error|error_description|error_uri)$/.test(i.name)?'='+i.value:'')}).join(',');return [location.pathname,document.title,b?b.innerText.trim().length:-1,b?b.innerHTML.length:-1,document.querySelectorAll('iframe').length,innerWidth+'x'+innerHeight,'form:'+fa,'campos:'+hid].join(' | ')})()", r -> {
             if (r == null) return;
             String v = r.replace("\"", "");
             String[] p = v.split(" \\| ");
