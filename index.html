@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kylapse · Synapse en el celular</title>
+<style>
+body{margin:0;background:#122221;color:#E6EEEC;font:17px/1.55 -apple-system,Roboto,"Segoe UI",sans-serif}
+main{max-width:620px;margin:0 auto;padding:22px 16px 60px}
+.eb{color:#76D7B5;font-size:13px;font-weight:700;letter-spacing:1px}
+h1{font-size:28px;margin:4px 0 6px}
+p.sub{color:#9AB0AB;margin:0 0 20px}
+.card{background:#1B2929;border:1px solid #2E4140;border-radius:14px;padding:16px;margin-bottom:14px}
+.n{display:inline-flex;flex:none;width:28px;height:28px;border-radius:50%;background:#38946D;color:#FFFFFF;font-weight:800;align-items:center;justify-content:center;margin-right:8px;font-size:15px}
+.card h2{font-size:18px;margin:0 0 8px;display:flex;align-items:center}
+.card p{margin:6px 0;color:#D3DEDB}
+b.k{color:#D7DB83}
+button{width:100%;font-size:18px;font-weight:700;padding:14px;border-radius:11px;border:0;background:#38946D;color:#FFFFFF;margin-top:6px}
+textarea{width:100%;box-sizing:border-box;height:64px;margin-top:10px;background:#0D1A19;color:#9AB0AB;border:1px solid #2E4140;border-radius:9px;font:12px monospace;padding:8px}
+.ok{color:#76D7B5;font-weight:700;text-align:center;min-height:1.4em;margin-top:6px}
+.note{color:#9AB0AB;font-size:15px}
+code{background:#0D1A19;padding:1px 6px;border-radius:5px;color:#E6EEEC}
+</style></head><body><main>
+<div class="eb">HOSPITAL SAN JUAN DE DIOS · PACS</div>
+<h1>Kylapse</h1>
+<p class="sub">Busca exámenes por RUT, lee informes y mira imágenes de Synapse desde el celular. Funciona dentro de tu sesión de Synapse y no guarda datos de pacientes en ninguna parte.</p>
+
+<div class="card"><h2><span class="n">1</span>Copia el marcador</h2>
+<button id="cp">Copiar</button><div class="ok" id="st"></div>
+<textarea id="ta" readonly>javascript:(()=&gt;{if(window.__SMV&amp;&amp;/^\/ImageViewer\//i.test(location.pathname))return window.__SMV.show();if(window.__SM&amp;&amp;!/^\/ImageViewer\//i.test(location.pathname))return window.__SM.open();const s=document.createElement(&#x27;script&#x27;);s.src=&#x27;https://kylapse.github.io/kylapse/sm.js?v=&#x27;+Date.now();s.onerror=()=&gt;alert(&#x27;No se pudo cargar Kylapse. Revisa tu conexion.&#x27;);document.body.append(s)})()</textarea>
+<p class="note">Si el botón no copia, mantén presionado el recuadro, Seleccionar todo y Copiar.</p></div>
+
+<div class="card"><h2><span class="n">2</span>Guárdalo en Chrome</h2>
+<p>En esta misma página toca <b class="k">⋮</b> y la <b class="k">estrella</b> para guardarla como marcador.</p>
+<p>Abre <b class="k">⋮ → Marcadores</b>, mantén presionado el marcador recién creado y elige <b class="k">Editar</b>.</p>
+<p>En nombre escribe <code>Kylapse</code>. En URL borra todo, pega lo que copiaste y guarda.</p></div>
+
+<div class="card"><h2><span class="n">3</span>Úsalo en Synapse</h2>
+<p>Entra a <code>sjdpacs.synapsetimed.cl/WorkflowUI</code> con tu usuario. Toca la barra de direcciones, escribe <code>kylapse</code> (con las primeras letras basta) y elige la sugerencia que tiene la <b class="k">estrella</b>.</p>
+<p class="note">Tiene que ser esa sugerencia. Si aprietas Enter, Chrome lo busca en Google.</p></div>
+
+<div class="card"><h2><span class="n">✓</span>Cómo se usa</h2>
+<p>Escribe el RUT, con o sin puntos y guion, y toca Buscar. Al tocar un estudio se abre el informe, y <b class="k">Ver imágenes</b> abre el visor en una pestaña nueva. Si Chrome avisa que bloqueó una ventana emergente, toca <b class="k">Permitir siempre</b> y aprieta de nuevo.</p>
+<p>En el visor hay una barra abajo. Primero toca el cuadro que quieres usar. <b class="k">Bone, Abdomen, Lung e Inicial</b> cambian la ventana. <b class="k">▲ ▼</b> cambian de corte, y si los mantienes presionados avanzan seguido. <b class="k">Series</b> carga otra serie en el cuadro. <b class="k">1 ▢</b> y <b class="k">2 ▤</b> dejan uno o dos cuadros. <b class="k">✕</b> esconde la barra y <b class="k">Herramientas</b> la trae de vuelta.</p>
+<p class="note">Si la sesión de Synapse expira, vuelve a entrar y abre Kylapse otra vez. Las mejoras llegan solas, no hay que reinstalar nada.</p></div>
+</main>
+<script>
+const ta=document.getElementById('ta'),st=document.getElementById('st');
+document.getElementById('cp').onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);st.textContent='Copiado ✓'}catch(e){ta.focus();ta.select();try{document.execCommand('copy');st.textContent='Copiado ✓'}catch(_){st.textContent='Selecciona el recuadro y copia a mano'}}};
+</script></body></html>

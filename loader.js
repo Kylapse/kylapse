@@ -1,0 +1,1 @@
+(()=>{if(window.__SMV&&/^\/ImageViewer\//i.test(location.pathname))return window.__SMV.show();if(window.__SM&&!/^\/ImageViewer\//i.test(location.pathname))return window.__SM.open();const s=document.createElement('script');s.src='https://kylapse.github.io/kylapse/sm.js?v='+Date.now();s.onerror=()=>alert('No se pudo cargar Kylapse. Revisa tu conexion.');document.body.append(s)})()
