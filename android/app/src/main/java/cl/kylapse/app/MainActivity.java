@@ -5,7 +5,17 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.net.http.SslError;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
+import android.view.View;
 import android.webkit.CookieManager;
+import android.webkit.SslErrorHandler;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceResponse;
+import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -31,6 +41,13 @@ public class MainActivity extends Activity {
         "(document.body||document.documentElement).appendChild(s)})();";
 
     private WebView web;
+    private TextView status;
+    private boolean failed = false;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable slow = () -> {
+        if (status.getVisibility() == View.VISIBLE && !failed)
+            status.setText("Synapse está tardando en responder…\n\nSi no carga, revisa que tengas conexión a la red desde donde normalmente abres Synapse (WiFi del hospital o VPN).");
+    };
 
     @Override
     protected void onCreate(Bundle state) {
@@ -38,9 +55,21 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.parseColor("#0D1A19"));
         getWindow().setNavigationBarColor(Color.parseColor("#0D1A19"));
 
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.parseColor("#122221"));
         web = new WebView(this);
         web.setBackgroundColor(Color.parseColor("#122221"));
-        setContentView(web);
+        root.addView(web, new FrameLayout.LayoutParams(-1, -1));
+        status = new TextView(this);
+        status.setTextColor(Color.parseColor("#E6EEEC"));
+        status.setTextSize(17);
+        status.setGravity(Gravity.CENTER);
+        status.setPadding(60, 60, 60, 60);
+        status.setBackgroundColor(Color.parseColor("#122221"));
+        status.setText("KYLAPSE\n\nAbriendo Synapse…");
+        status.setOnClickListener(v -> { if (failed) retry(); });
+        root.addView(status, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -73,12 +102,48 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                if (!failed) status.setVisibility(View.GONE);
                 inject(url);
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest req, WebResourceError err) {
+                if (req.isForMainFrame())
+                    fail("No se pudo conectar con Synapse.\n\n" + err.getDescription() + " (" + err.getErrorCode() + ")\n\n"
+                        + "Synapse solo abre desde ciertas redes. Prueba conectado al WiFi del hospital o con la VPN, o revisa que abra en Chrome.");
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest req, WebResourceResponse resp) {
+                if (req.isForMainFrame() && resp.getStatusCode() >= 500)
+                    fail("Synapse respondió con un error (" + resp.getStatusCode() + ").");
+            }
+
+            @Override
+            public void onReceivedSslError(WebView view, SslErrorHandler h, SslError err) {
+                h.cancel();
+                fail("No se pudo verificar la conexión segura con Synapse (código " + err.getPrimaryError() + ").\n\n"
+                    + "Por seguridad la app no continúa. Avísale a quien te compartió Kylapse.");
             }
         });
 
         if (state != null) web.restoreState(state);
         else web.loadUrl(START);
+        handler.postDelayed(slow, 15000);
+    }
+
+    private void fail(String msg) {
+        failed = true;
+        status.setText(msg + "\n\nToca la pantalla para reintentar.");
+        status.setVisibility(View.VISIBLE);
+    }
+
+    private void retry() {
+        failed = false;
+        status.setText("KYLAPSE\n\nAbriendo Synapse…");
+        web.loadUrl(START);
+        handler.removeCallbacks(slow);
+        handler.postDelayed(slow, 15000);
     }
 
     private void inject(String url) {
