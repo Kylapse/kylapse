@@ -22,7 +22,7 @@ code{background:#0D1A19;padding:1px 6px;border-radius:5px;color:#E6EEEC}
 <h1>Kylapse</h1>
 <p class="sub">Busca exámenes por RUT, lee informes y mira imágenes de Synapse desde el celular. Funciona dentro de tu sesión de Synapse y no guarda datos de pacientes en ninguna parte.</p>
 
-<p class="note" style="margin-top:-8px">Instrucciones para Android con Chrome. Más abajo están las de computador y iPhone.</p>
+<p class="note" style="margin-top:-8px">Instrucciones para Android con Chrome. Más abajo están las de iPhone.</p>
 <div class="card"><h2><span class="n">1</span>Copia el marcador</h2>
 <button id="cp">Copiar</button><div class="ok" id="st"></div>
 <textarea id="ta" readonly>javascript:(()=&gt;{if(window.__SMV&amp;&amp;/^\/ImageViewer\//i.test(location.pathname))return window.__SMV.show();if(window.__SM&amp;&amp;!/^\/ImageViewer\//i.test(location.pathname))return window.__SM.open();const s=document.createElement(&#x27;script&#x27;);s.src=&#x27;https://kylapse.github.io/kylapse/sm.js?v=&#x27;+Date.now();s.onerror=()=&gt;alert(&#x27;No se pudo cargar Kylapse. Revisa tu conexion.&#x27;);document.body.append(s)})()</textarea>
@@ -37,11 +37,7 @@ code{background:#0D1A19;padding:1px 6px;border-radius:5px;color:#E6EEEC}
 <p>Entra a <code>sjdpacs.synapsetimed.cl/WorkflowUI</code> con tu usuario. Toca la barra de direcciones, escribe <code>kylapse</code> (con las primeras letras basta) y elige la sugerencia que tiene la <b class="k">estrella</b>.</p>
 <p class="note">Tiene que ser esa sugerencia. Si aprietas Enter, Chrome lo busca en Google.</p></div>
 
-<div class="card"><h2><span class="n">PC</span>En el computador</h2>
-<p>Arrastra este botón a la barra de marcadores de Chrome (si no la ves, Ctrl+Shift+B). Después, estando en Synapse, haz clic en él.</p>
-<p style="text-align:center;margin:14px 0"><a href="javascript:(()=&gt;{if(window.__SMV&amp;&amp;/^\/ImageViewer\//i.test(location.pathname))return window.__SMV.show();if(window.__SM&amp;&amp;!/^\/ImageViewer\//i.test(location.pathname))return window.__SM.open();const s=document.createElement(&#x27;script&#x27;);s.src=&#x27;https://kylapse.github.io/kylapse/sm.js?v=&#x27;+Date.now();s.onerror=()=&gt;alert(&#x27;No se pudo cargar Kylapse. Revisa tu conexion.&#x27;);document.body.append(s)})()" style="display:inline-block;background:#38946D;color:#fff;font-weight:700;padding:12px 26px;border-radius:11px;text-decoration:none" onclick="event.preventDefault();alert('Arrástralo a la barra de marcadores; aquí no hace nada.')">Kylapse</a></p></div>
-
-<div class="card"><h2><span class="n">iOS</span>En iPhone (Safari)</h2>
+ <div class="card"><h2><span class="n">iOS</span>En iPhone (Safari)</h2>
 <p>Toca <b class="k">Compartir → Agregar marcador</b> en esta página. Luego abre <b class="k">Marcadores → Editar</b>, toca el marcador nuevo, cambia el nombre a <code>Kylapse</code>, borra la dirección y pega lo copiado en el paso 1.</p>
 <p>Para usarlo, entra a Synapse, abre <b class="k">Marcadores</b> y toca <b class="k">Kylapse</b>.</p>
 <p class="note">En iPhone todavía no está probado. Si algo no funciona, avisa.</p></div>
