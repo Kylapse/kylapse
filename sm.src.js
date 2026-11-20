@@ -46,7 +46,7 @@ function viewerTools(){
  const row=(...b)=>{const r=D.createElement('div');r.className='r';r.append(...b);return r};
  bar.append(
   row(mk('Bone','p',()=>key('Numpad0','0',96)),mk('Abdomen','p',()=>key('Numpad1','1',97)),mk('Lung','p',()=>key('Numpad2','2',98)),mk('Inicial','p',()=>key('Numpad9','9',105))),
-  row(mk('▲',0,()=>key('ArrowUp','ArrowUp',38),1),mk('▼',0,()=>key('ArrowDown','ArrowDown',40),1),mk('Series',0,openSeries),mk('1 ▢',0,()=>layout('1x1')),mk('2 ▤',0,()=>layout('2x1')),mk('✕',0,()=>{bar.style.display='none';panel.style.display='none';pill.style.display='block';pill.dataset.t=Date.now()})));
+  row(mk('▲',0,()=>key('ArrowUp','ArrowUp',38),1),mk('▼',0,()=>key('ArrowDown','ArrowDown',40),1),mk('Series',0,openSeries),mk('1 ▢',0,()=>layout('1x1')),mk('2 ▤',0,()=>layout('2x1')),mk('2 ◫',0,()=>layout('1x2')),mk('✕',0,()=>{bar.style.display='none';panel.style.display='none';pill.style.display='block';pill.dataset.t=Date.now()})));
  pill.addEventListener('click',()=>{if(Date.now()-(+pill.dataset.t||0)<700)return;bar.style.display='flex';pill.style.display='none'});
  D.body.append(panel,bar,pill);
  window.__SMV={show:()=>{bar.style.display='flex';pill.style.display='none'}};

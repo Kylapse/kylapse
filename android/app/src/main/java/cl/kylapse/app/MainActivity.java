@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
+import android.webkit.ConsoleMessage;
 import android.webkit.CookieManager;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
@@ -22,6 +23,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.util.ArrayDeque;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -43,6 +45,8 @@ public class MainActivity extends Activity {
     private WebView web;
     private TextView status;
     private boolean failed = false;
+    private final ArrayDeque<String> console = new ArrayDeque<>();
+    private final Runnable check = this::checkBlank;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable slow = () -> {
         if (status.getVisibility() == View.VISIBLE && !failed)
@@ -89,7 +93,19 @@ public class MainActivity extends Activity {
         cm.setAcceptCookie(true);
         cm.setAcceptThirdPartyCookies(web, true);
 
-        web.setWebChromeClient(new WebChromeClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage m) {
+                if (m.messageLevel() == ConsoleMessage.MessageLevel.ERROR || m.messageLevel() == ConsoleMessage.MessageLevel.WARNING) {
+                    String src = m.sourceId() == null ? "" : m.sourceId().replaceAll("^https?://[^/]+", "").replaceAll("\\?.*$", "");
+                    String line = m.message() + "  [" + src + ":" + m.lineNumber() + "]";
+                    if (line.length() > 160) line = line.substring(0, 160) + "…";
+                    console.addLast(line);
+                    while (console.size() > 6) console.removeFirst();
+                }
+                return false;
+            }
+        });
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
@@ -104,6 +120,8 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 if (!failed) status.setVisibility(View.GONE);
                 inject(url);
+                handler.removeCallbacks(check);
+                handler.postDelayed(check, 5000);
             }
 
             @Override
@@ -130,6 +148,25 @@ public class MainActivity extends Activity {
         if (state != null) web.restoreState(state);
         else web.loadUrl(START);
         handler.postDelayed(slow, 15000);
+    }
+
+    /** Si la página quedó vacía (pantalla negra), muestra en pantalla qué pasó para poder diagnosticarlo. */
+    private void checkBlank() {
+        if (failed) return;
+        web.evaluateJavascript("(function(){var b=document.body;return [location.pathname,document.title,b?b.innerText.trim().length:-1,b?b.innerHTML.length:-1,document.querySelectorAll('iframe').length,innerWidth+'x'+innerHeight].join(' | ')})()", r -> {
+            if (r == null) return;
+            String v = r.replace("\"", "");
+            String[] p = v.split(" \\| ");
+            int n = -1;
+            try { n = Integer.parseInt(p[2].trim()); } catch (Exception ignored) { }
+            boolean viewer = v.toLowerCase().contains("/imageviewer/");
+            if (n >= 0 && n < 5 && !viewer) {
+                StringBuilder sb = new StringBuilder("La página de Synapse quedó en blanco.\n\nDatos para Alberto:\n").append(v).append("\n");
+                for (String c : console) sb.append("\n• ").append(c);
+                if (console.isEmpty()) sb.append("\n(sin errores en consola)");
+                fail(sb.toString());
+            }
+        });
     }
 
     private void fail(String msg) {
