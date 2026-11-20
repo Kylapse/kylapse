@@ -60,7 +60,8 @@ const css=`
 #sm *{box-sizing:border-box}
 #sm .top{background:#0D1A19;padding:10px 12px;border-bottom:1px solid #2E4140;flex:none}
 #sm .row{display:flex;gap:8px;align-items:center}
-#sm .brand{font-weight:700;color:#76D7B5;font-size:15px;letter-spacing:.5px;flex:1}
+#sm .brand{font-weight:300;color:#FFFFFF;font-size:19px;letter-spacing:3px;flex:1}
+#sm .brand .hs{color:#9AB0AB;font-size:12px;letter-spacing:1px;font-weight:400}
 #sm .x{background:none;border:0;color:#9AB0AB;font-size:26px;padding:0 6px;line-height:1}
 #sm input{flex:1;min-width:0;font-size:20px;padding:11px 12px;border-radius:10px;border:1px solid #2E4140;background:#1B2929;color:#fff;outline:none}
 #sm input:focus{border-color:#76D7B5}
@@ -120,7 +121,7 @@ const chips=$('div',{class:'chips'});
 const list=$('div',{class:'list'},$('div',{class:'msg'},'Ingresa un RUT con o sin puntos y guion.'));
 const root=$('div',{id:'sm'},$('style',{},css),
  $('div',{class:'top'},
-  $('div',{class:'row',style:'margin-bottom:9px'},$('div',{class:'brand'},'KYLAPSE · HSJD'),$('button',{class:'x',title:'Cerrar',on:{click:close}},'×')),
+  $('div',{class:'row',style:'margin-bottom:9px'},$('div',{class:'brand'},'KYL',$('span',{style:'color:#ED1A3A'},'A'),'PSE',$('span',{class:'hs'},' · HSJD')),$('button',{class:'x',title:'Cerrar',on:{click:close}},'×')),
   $('div',{class:'row'},inp,goBtn),chips),list);
 function msg(t,err){list.replaceChildren($('div',{class:'msg'+(err?' err':'')},t))}
 function renderChips(){const mods=['Todas',...new Set(rows.map(r=>r.procedureModality||'?'))];chips.replaceChildren(...mods.map(m=>$('button',{class:'chip'+(m==modSel?' on':''),on:{click:()=>{modSel=m;renderChips();renderList()}}},m+(m=='Todas'?' ('+rows.length+')':''))))}
