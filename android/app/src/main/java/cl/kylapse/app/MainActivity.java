@@ -112,6 +112,8 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri u = req.getUrl();
                 noteAuth(u);
+                Uri fixed = fixAuth(u);
+                if (fixed != null) { view.loadUrl(fixed.toString()); return true; }
                 String h = u.getHost();
                 if (h != null && (h.equals(HOST) || h.endsWith(".synapsetimed.cl"))) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
@@ -190,6 +192,31 @@ public class MainActivity extends Activity {
             sb.append(k).append(show ? "=" + v : "(" + v.length() + ")").append("  ");
         }
         authInfo = (authInfo.isEmpty() ? "" : authInfo + "\n→ ") + sb.toString().trim() + "  [largo URL " + u.toString().length() + "]";
+    }
+
+    /**
+     * Sin sesión iniciada, Synapse puede pedir un ingreso "silencioso" (prompt=none) que dentro de la app
+     * termina en error en vez de mostrar la pantalla de usuario y contraseña. Aquí se quita esa opción para
+     * que Synapse muestre siempre su pantalla de inicio de sesión. Devuelve null si no hay nada que cambiar.
+     */
+    private Uri fixAuth(Uri u) {
+        String p = u.getPath();
+        if (p == null || !p.toLowerCase().contains("/connect/authorize")) return null;
+        String prompt = u.getQueryParameter("prompt");
+        String loc = u.getQueryParameter("ui_locales");
+        boolean dropPrompt = "none".equalsIgnoreCase(prompt);
+        boolean fixLoc = loc != null && loc.length() > 10;
+        if (!dropPrompt && !fixLoc) return null;
+        Uri.Builder b = u.buildUpon().clearQuery();
+        for (String k : u.getQueryParameterNames()) {
+            if (dropPrompt && k.equals("prompt")) continue;
+            for (String v : u.getQueryParameters(k)) {
+                if (fixLoc && k.equals("ui_locales")) v = "es";
+                b.appendQueryParameter(k, v);
+            }
+        }
+        authInfo += "\n(app: " + (dropPrompt ? "quitó prompt=none " : "") + (fixLoc ? "acortó ui_locales" : "") + ")";
+        return b.build();
     }
 
     private void fail(String msg) {
