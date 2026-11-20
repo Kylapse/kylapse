@@ -147,6 +147,7 @@ function openImgs(r,btn){
  try{dcm.cc.beginTransaction();dcm.cc.setValue('currentPatientUuid',JSON.stringify({patientUuid:r.patientUUID,dataSource:ds}),'StudyChange');dcm.cc.setValue('currentStudyUuid',JSON.stringify({studyInstanceId:r.instanceEUID,dataSource:ds}),'StudyChange');dcm.cc.endTransaction()}
  catch(e){btn.textContent='Abre Kylapse desde la lista de trabajo';return}
  fetch('/ViewerService/api/study/prefetch?studyUid='+encodeURIComponent(r.instanceEUID)+'&dataSource='+encodeURIComponent(ds)).catch(()=>{});
+ if(window.__KYL_APP){location.href='/ImageViewer/layout';return}
  const w=window.open('/ImageViewer/layout','smviewer');
  if(!w){btn.textContent='Chrome bloqueó la pestaña: permite ventanas emergentes';return}
  const code='('+viewerTools+')()';let k=0;
@@ -158,13 +159,14 @@ function acts(r){
  b.push($('button',{class:'btn',on:{click:e=>{e.stopPropagation();const t=e.target.closest('.rep').firstChild;navigator.clipboard&&navigator.clipboard.writeText(t.textContent||'');e.target.textContent='Copiado'}}},'Copiar informe'));
  return $('div',{class:'acts'},b)}
 async function run(){
- const v=inp.value.trim();if(!v)return;inp.blur();msg('Buscando…');
+ const v=inp.value.trim();if(!v)return;inp.blur();msg('Buscando…');try{sessionStorage.setItem('kyl_rut',v)}catch(e){}
  try{rows=await search(v);modSel='Todas';if(!rows.length){chips.replaceChildren();msg('Sin estudios para ese RUT.');return}renderChips();renderList()}
  catch(e){chips.replaceChildren();msg(/JSON|HTTP 40/.test(e.message)?'La sesión de Synapse expiró. Vuelve a iniciar sesión y abre Kylapse de nuevo.':e.message,true)}
 }
 goBtn.onclick=run;inp.addEventListener('keydown',e=>{if(e.key=='Enter')run()});
 let vp=document.querySelector('meta[name=viewport]'),vpOld=vp&&vp.content;
-function open(){if(!vp){vp=$('meta',{name:'viewport'});document.head.append(vp)}vp.content='width=device-width,initial-scale=1,maximum-scale=1';document.documentElement.style.overflow='hidden';document.body.append(root);setTimeout(()=>inp.focus(),50)}
-function close(){root.remove();document.documentElement.style.overflow='';if(vpOld!=null)vp.content=vpOld}
+const reo=$('button',{style:'position:fixed;right:12px;bottom:14px;z-index:2147483600;font:300 15px Roboto,Arial,sans-serif;letter-spacing:2px;padding:10px 16px;border-radius:20px;border:0;background:#38946D;color:#FFFFFF;box-shadow:0 2px 8px rgba(0,0,0,.4)',on:{click:()=>{reo.remove();open()}}},'KYL',$('span',{style:'color:#ED1A3A;font-weight:700'},'A'),'PSE');
+function open(){reo.remove();if(!vp){vp=$('meta',{name:'viewport'});document.head.append(vp)}vp.content='width=device-width,initial-scale=1,maximum-scale=1';document.documentElement.style.overflow='hidden';document.body.append(root);let last='';try{last=sessionStorage.getItem('kyl_rut')||''}catch(e){}if(last&&!rows.length){inp.value=last;run()}else setTimeout(()=>inp.focus(),50)}
+function close(){root.remove();document.documentElement.style.overflow='';if(vpOld!=null)vp.content=vpOld;if(window.__KYL_APP)document.body.append(reo)}
 window.__SM={open,close,search};open();
 })();

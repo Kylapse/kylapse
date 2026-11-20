@@ -19,13 +19,22 @@ textarea{width:100%;box-sizing:border-box;height:64px;margin-top:10px;background
 .ok{color:#76D7B5;font-weight:700;text-align:center;min-height:1.4em;margin-top:6px}
 .note{color:#9AB0AB;font-size:15px}
 a.lnk{color:#76D7B5;font-weight:700;text-decoration:underline;word-break:break-all}
+a.dl{display:block;text-align:center;background:#38946D;color:#fff;font-size:18px;font-weight:700;padding:14px;border-radius:11px;text-decoration:none;margin:10px 0}
+h3.alt{font-size:17px;color:#76D7B5;margin:26px 2px 10px}
 code{background:#0D1A19;padding:1px 6px;border-radius:5px;color:#E6EEEC}
 </style></head><body><main>
 <div class="eb">HOSPITAL SAN JUAN DE DIOS · PACS</div>
 <h1 class="logo">KYL<span>A</span>PSE</h1>
 <p class="sub">Busca exámenes por RUT, lee informes y mira imágenes de Synapse desde el celular. Funciona dentro de tu sesión de Synapse y no guarda datos de pacientes en ninguna parte.</p>
 
-<p class="note" style="margin-top:-8px">Instrucciones para Android con Chrome. Más abajo están las de iPhone.</p>
+<div class="card" style="border-color:#76D7B5"><h2><span class="n">A</span>Android: instala la app</h2>
+<p>Es lo más simple. Kylapse queda como un ícono más en tu teléfono y abre Synapse con todo cargado, sin marcadores.</p>
+<a class="dl" href="https://github.com/Kylapse/kylapse/releases/download/android-latest/kylapse.apk">Descargar Kylapse para Android</a>
+<p>Cuando Chrome avise que el archivo puede ser dañino, toca <b class="k">Descargar de todos modos</b>. Abre el archivo descargado y, si Android lo pide, permite <b class="k">instalar apps desconocidas</b> desde Chrome. Después toca <b class="k">Instalar</b>. Si aparece un aviso de Play Protect, elige instalar de todas formas.</p>
+<p>Abre Kylapse, inicia sesión con tu usuario de Synapse y el buscador aparece solo. Para volver del visor a la lista usa el botón atrás del teléfono. Si cierras el buscador, el botón <b class="k">KYLAPSE</b> de abajo lo vuelve a abrir.</p></div>
+
+<h3 class="alt">¿Tienes iPhone o la app no te funcionó? Usa el marcador</h3>
+<p class="note" style="margin-top:-4px">Estos pasos son para Chrome en Android. Más abajo están los de iPhone.</p>
 <div class="card"><h2><span class="n">1</span>Copia el marcador</h2>
 <button id="cp">Copiar</button><div class="ok" id="st"></div>
 <textarea id="ta" readonly>javascript:(()=&gt;{if(window.__SMV&amp;&amp;/^\/ImageViewer\//i.test(location.pathname))return window.__SMV.show();if(window.__SM&amp;&amp;!/^\/ImageViewer\//i.test(location.pathname))return window.__SM.open();const s=document.createElement(&#x27;script&#x27;);s.src=&#x27;https://kylapse.github.io/kylapse/sm.js?v=&#x27;+Date.now();s.onerror=()=&gt;alert(&#x27;No se pudo cargar Kylapse. Revisa tu conexion.&#x27;);document.body.append(s)})()</textarea>
@@ -48,7 +57,7 @@ code{background:#0D1A19;padding:1px 6px;border-radius:5px;color:#E6EEEC}
 <div class="card"><h2><span class="n">✓</span>Cómo se usa</h2>
 <p>Escribe el RUT, con o sin puntos y guion, y toca Buscar. Al tocar un estudio se abre el informe, y <b class="k">Ver imágenes</b> abre el visor en una pestaña nueva. Si Chrome avisa que bloqueó una ventana emergente, toca <b class="k">Permitir siempre</b> y aprieta de nuevo.</p>
 <p>En el visor hay una barra abajo. Primero toca el cuadro que quieres usar. <b class="k">Bone, Abdomen, Lung e Inicial</b> cambian la ventana. <b class="k">▲ ▼</b> cambian de corte, y si los mantienes presionados avanzan seguido. <b class="k">Series</b> carga otra serie en el cuadro. <b class="k">1 ▢</b> y <b class="k">2 ▤</b> dejan uno o dos cuadros. <b class="k">✕</b> esconde la barra y <b class="k">Herramientas</b> la trae de vuelta.</p>
-<p class="note">Si la sesión de Synapse expira, vuelve a entrar y abre Kylapse otra vez. Las mejoras llegan solas, no hay que reinstalar nada.</p></div>
+<p class="note">Si la sesión de Synapse expira, vuelve a entrar y abre Kylapse otra vez. Las mejoras llegan solas, tanto en la app como en el marcador.</p></div>
 </main>
 <script>
 const ta=document.getElementById('ta'),st=document.getElementById('st');
