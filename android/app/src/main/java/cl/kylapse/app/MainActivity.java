@@ -194,12 +194,17 @@ public class MainActivity extends Activity {
 
     private void fail(String msg) {
         failed = true;
+        status.setTextSize(13);
+        status.setGravity(Gravity.TOP | Gravity.START);
+        status.setMovementMethod(new android.text.method.ScrollingMovementMethod());
         status.setText(msg + "\n\nToca la pantalla para reintentar.");
         status.setVisibility(View.VISIBLE);
     }
 
     private void retry() {
         failed = false;
+        status.setTextSize(17);
+        status.setGravity(Gravity.CENTER);
         status.setText("KYLAPSE\n\nAbriendo Synapse…");
         web.loadUrl(START);
         handler.removeCallbacks(slow);
