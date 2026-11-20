@@ -178,15 +178,16 @@ public class MainActivity extends Activity {
     /** Si la página quedó vacía (pantalla negra), muestra en pantalla qué pasó para poder diagnosticarlo. */
     private void checkBlank() {
         if (failed) return;
-        web.evaluateJavascript("(function(){var b=document.body;var f=document.forms[0],fa='';try{fa=f?new URL(f.action,location.href).pathname:''}catch(e){};var hid=Array.prototype.map.call(document.querySelectorAll('input'),function(i){return i.name+(/^(error|error_description|error_uri)$/.test(i.name)?'='+i.value:'')}).join(',');return [location.pathname,document.title,b?b.innerText.trim().length:-1,b?b.innerHTML.length:-1,document.querySelectorAll('iframe').length,innerWidth+'x'+innerHeight,'form:'+fa,'campos:'+hid].join(' | ')})()", r -> {
+        web.evaluateJavascript("(function(){var b=document.body;var f=document.forms[0],fa='';try{fa=f?new URL(f.action,location.href).pathname:''}catch(e){};var hid=Array.prototype.map.call(document.querySelectorAll('input'),function(i){return i.name+(/^(error|error_description|error_uri)$/.test(i.name)?'='+i.value:'')}).join(',');return [location.pathname,document.title,b?b.innerText.trim().length:-1,b?b.innerHTML.length:-1,document.querySelectorAll('iframe').length,innerWidth+'x'+innerHeight,(/^\\s*Error/m.test(b?b.innerText:'')&&!document.querySelector('input[type=password]'))?'ERRPAGE:'+(b.innerText.replace(/\\s+/g,' ').slice(0,160)):'','form:'+fa,'campos:'+hid].join(' | ')})()", r -> {
             if (r == null) return;
             String v = r.replace("\"", "");
             String[] p = v.split(" \\| ");
             int n = -1;
             try { n = Integer.parseInt(p[2].trim()); } catch (Exception ignored) { }
             boolean viewer = v.toLowerCase().contains("/imageviewer/");
-            if (n >= 0 && n < 5 && !viewer) {
-                StringBuilder sb = new StringBuilder("La página de Synapse quedó en blanco.\n\nDatos para Alberto:\n").append(v).append("\n");
+            boolean ssoError = v.toLowerCase().contains("/synapsesignon/") && v.contains("ERRPAGE");
+            if ((n >= 0 && n < 5 && !viewer) || ssoError) {
+                StringBuilder sb = new StringBuilder("Synapse no dejó entrar.\n\nDatos para Alberto:\n").append(v).append("\n");
                 for (String c : console) sb.append("\n• ").append(c);
                 if (console.isEmpty()) sb.append("\n(sin errores en consola)");
                 if (!authInfo.isEmpty()) sb.append("\n\nSolicitud:\n").append(authInfo);
@@ -219,24 +220,13 @@ public class MainActivity extends Activity {
     private Uri fixAuth(Uri u) {
         String p = u.getPath();
         if (p == null || !p.toLowerCase().contains("/connect/authorize")) return null;
-        String prompt = u.getQueryParameter("prompt");
-        String loc = u.getQueryParameter("ui_locales");
-        boolean dropPrompt = "none".equalsIgnoreCase(prompt);
-        boolean fixLoc = loc != null && loc.length() > 10;
         String rt = u.getQueryParameter("response_type");
-        boolean addNonce = rt != null && rt.contains("id_token") && u.getQueryParameter("nonce") == null;
-        if (!dropPrompt && !fixLoc && !addNonce) return null;
-        Uri.Builder b = u.buildUpon().clearQuery();
-        for (String k : u.getQueryParameterNames()) {
-            if (dropPrompt && k.equals("prompt")) continue;
-            for (String v : u.getQueryParameters(k)) {
-                if (fixLoc && k.equals("ui_locales")) v = "es";
-                b.appendQueryParameter(k, v);
-            }
-        }
-        if (addNonce) b.appendQueryParameter("nonce", UUID.randomUUID().toString().replace("-", ""));
-        authInfo += "\n(app: " + (dropPrompt ? "quitó prompt=none " : "") + (fixLoc ? "acortó ui_locales " : "") + (addNonce ? "agregó nonce" : "") + ")";
-        return b.build();
+        if (rt == null || !rt.contains("id_token") || u.getQueryParameter("nonce") != null) return null;
+        // Se agrega el nonce al final del texto original, sin reconstruir el resto de la solicitud.
+        String raw = u.toString();
+        String nonce = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
+        authInfo += "\n(app: agregó nonce)";
+        return Uri.parse(raw + (raw.contains("?") ? "&" : "?") + "nonce=" + nonce);
     }
 
     private void fail(String msg) {
