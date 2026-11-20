@@ -47,6 +47,7 @@ public class MainActivity extends Activity {
     private boolean failed = false;
     private final ArrayDeque<String> console = new ArrayDeque<>();
     private final Runnable check = this::checkBlank;
+    private String authInfo = "";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable slow = () -> {
         if (status.getVisibility() == View.VISIBLE && !failed)
@@ -110,10 +111,16 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri u = req.getUrl();
+                noteAuth(u);
                 String h = u.getHost();
                 if (h != null && (h.equals(HOST) || h.endsWith(".synapsetimed.cl"))) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
                 return true;
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap icon) {
+                if (url != null) noteAuth(Uri.parse(url));
             }
 
             @Override
@@ -164,9 +171,25 @@ public class MainActivity extends Activity {
                 StringBuilder sb = new StringBuilder("La página de Synapse quedó en blanco.\n\nDatos para Alberto:\n").append(v).append("\n");
                 for (String c : console) sb.append("\n• ").append(c);
                 if (console.isEmpty()) sb.append("\n(sin errores en consola)");
+                if (!authInfo.isEmpty()) sb.append("\n\nSolicitud:\n").append(authInfo);
+                sb.append("\n\nIdioma: ").append(java.util.Locale.getDefault().toLanguageTag());
                 fail(sb.toString());
             }
         });
+    }
+
+    /** Guarda los parámetros de la solicitud de inicio de sesión (sin claves ni tokens) para el diagnóstico. */
+    private void noteAuth(Uri u) {
+        String p = u.getPath();
+        if (p == null || !p.toLowerCase().contains("/connect/authorize")) return;
+        StringBuilder sb = new StringBuilder();
+        for (String k : u.getQueryParameterNames()) {
+            String v = u.getQueryParameter(k);
+            if (v == null) v = "";
+            boolean show = k.matches("client_id|response_type|response_mode|scope|redirect_uri|prompt|ui_locales|acr_values|max_age|display");
+            sb.append(k).append(show ? "=" + v : "(" + v.length() + ")").append("  ");
+        }
+        authInfo = (authInfo.isEmpty() ? "" : authInfo + "\n→ ") + sb.toString().trim() + "  [largo URL " + u.toString().length() + "]";
     }
 
     private void fail(String msg) {
