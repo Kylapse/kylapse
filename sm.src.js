@@ -205,6 +205,8 @@ function openImgs(r,btn){
   cc.setValue('isGlobal','false',N);cc.setValue('listIdentifier',LID,N);cc.setValue('isvna','false',N);
   cc.setValue('CurrentDataSource',ds,N);cc.setValue('currentStudyBaseIdentifier',LID,N);cc.setValue('blockF8F9','false',N);
   cc.setValue('currentPatientUuid',JSON.stringify({patientUuid:r.patientUUID,dataSource:ds}),N);
+  const DK=(dcm.clinicalContext&&dcm.clinicalContext.DefaultKeys)||{},pid=JSON.stringify({patientUuid:r.patientUUID,dataSource:ds});
+  [...new Set([DK.CURRENTPATIENTID,'currentPatientId'].filter(Boolean))].forEach(k=>cc.setValue(k,pid,N));
   cc.setValue('currentStudyUuid',JSON.stringify({studyInstanceId:r.instanceEUID,dataSource:ds}),'StudyChange');
   cc.endTransaction()}catch(e){}
  fetch('/ViewerService/api/study/prefetch?studyUid='+encodeURIComponent(r.instanceEUID)+'&dataSource='+encodeURIComponent(ds)).catch(()=>{});
