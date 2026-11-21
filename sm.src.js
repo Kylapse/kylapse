@@ -2,7 +2,9 @@
 function viewerTools(){
  if(window.__SMV){window.__SMV.show();return}
  const D=document,S=Math.max(1,Math.min(3,innerWidth/((screen&&screen.width)||innerWidth)));
- let tile=null;
+ let tile=null;const errs=[];
+ addEventListener('error',e=>{const t=e.target;errs.push(t&&t!==window&&(t.src||t.href)?'recurso '+String(t.src||t.href).split('?')[0].split('/').slice(-2).join('/'):(e.message||'')+' '+String(e.filename||'').split('?')[0].split('/').pop()+':'+e.lineno)},true);
+ addEventListener('unhandledrejection',e=>errs.push('promesa '+String(e.reason&&e.reason.message||e.reason).slice(0,90)));
  D.addEventListener('pointerdown',e=>{const t=e.target.closest&&e.target.closest('.TileView_IV');if(t)tile=t},true);
  const vis=t=>t&&t.isConnected&&t.offsetWidth>0;
  const getTile=()=>{if(vis(tile))return tile;const a=D.activeElement&&D.activeElement.closest&&D.activeElement.closest('.TileView_IV');if(vis(a))return a;return [...D.querySelectorAll('.TileView_IV')].find(vis)};
@@ -64,8 +66,13 @@ function viewerTools(){
  pill.addEventListener('click',()=>{if(Date.now()-(+pill.dataset.t||0)<700)return;bar.style.display='flex';pill.style.display='none'});
  D.body.append(panel,bar,pill);
  window.__SMV={show:()=>{bar.style.display='flex';pill.style.display='none'}};
+  const diag=()=>{let api='no',mvm='-';try{api=fujifilm.synapse.viewer.ViewerHost?'si':'parcial';mvm=fujifilm.synapse.viewer.MainViewModel.getInstance()?'si':'no'}catch(e){}
+   const c=D.createElement('canvas');const gl=(c.getContext('webgl2')?'gl2':c.getContext('webgl')?'gl1':'sin webgl');
+   const rs=performance.getEntriesByType('resource');const bad=rs.filter(r=>r.responseStatus>=400).map(r=>r.responseStatus+' '+r.name.split('?')[0].split('/').slice(-2).join('/'));
+   const ctx=Object.keys(localStorage).filter(k=>/currentStudyUid|currentPatientUuid|currentStudyData/i.test(k)).length;
+   return ['api:'+api,'mvm:'+mvm,'el:'+D.getElementsByTagName('*').length,'cv:'+D.querySelectorAll('canvas').length,'tiles:'+D.querySelectorAll('.TileView_IV').length,gl,'ctx:'+ctx,'res:'+rs.length,'fallas:'+(bad.slice(-5).join(', ')||'0'),'err:'+(errs.slice(-4).join(' / ')||'0'),innerWidth+'x'+innerHeight,/Mobile/.test(navigator.userAgent)?'movil':'escritorio'].join(' | ')};
   setTimeout(()=>{if([...D.querySelectorAll('.TileView_IV')].some(vis))return;const mob=/Mobile/.test(navigator.userAgent);
-   pick('diag',[['El visor no cargó imágenes.'+(mob?' Synapse ve este navegador como celular: en Chrome activa "Sitio de escritorio" (menú ⋮) y vuelve a abrir el examen.':'')],['Datos para Alberto: '+[location.pathname,D.title,innerWidth+'x'+innerHeight,mob?'movil':'escritorio',(D.body.innerText||'').replace(/\s+/g,' ').trim().slice(0,160)].join(' | ')],['Cerrar',()=>{}]])},25000);
+   pick('diag',[['El visor no cargó imágenes.'+(mob?' Synapse ve este navegador como celular: en Chrome activa "Sitio de escritorio" (menú ⋮) y vuelve a abrir el examen.':' Mándale una captura de esto a Alberto.')],['Datos: '+diag()],['Cerrar',()=>{}]])},25000);
 }
 if(/^\/ImageViewer\//i.test(location.pathname)){viewerTools();return}
 if(window.__SM){window.__SM.open();return}
