@@ -18,15 +18,26 @@ function viewerTools(){
   const ev=(el,ty,cx,cy)=>el.dispatchEvent(new DragEvent(ty,{bubbles:true,cancelable:true,view:window,clientX:cx,clientY:cy,dataTransfer:dt}));
   ev(src,'dragstart',sr.left+sr.width/2,sr.top+sr.height/2);setTimeout(()=>{ev(cv,'dragenter',x,y);ev(cv,'dragover',x,y);setTimeout(()=>{ev(cv,'drop',x,y);ev(src,'dragend',x,y)},40)},40)};
  const panel=D.createElement('div');panel.id='smvser';
- const openSeries=()=>{if(panel.style.display=='flex'){panel.style.display='none';return}
+  const act=(a,p)=>{try{fujifilm.synapse.viewer.ViewerHost.instance.executeActionByType(a,p);return true}catch(e){return false}};
+  const hideP=()=>{panel.style.display='none';panel.dataset.k=''};
+  const showP=()=>{panel.style.bottom=(bar.offsetHeight+8)+'px';panel.style.display='flex'};
+  const pick=(k,items)=>{if(panel.style.display=='flex'&&panel.dataset.k==k){hideP();return}panel.replaceChildren();panel.dataset.k=k;
+   items.forEach(([t,fn,ic])=>{if(!fn){const h=D.createElement('div');h.className='h';h.textContent=t;panel.append(h);return}
+    const b=D.createElement('button');if(ic)b.innerHTML=ic;b.append(t);b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();hideP();fn()});panel.append(b)});showP()};
+  const svg=r=>'<svg viewBox="0 0 22 16" width="1.4em" height="1em" style="vertical-align:-.15em;margin-right:.5em" fill="none" stroke="currentColor" stroke-width="1.8">'+r+'</svg>';
+  const I1=svg('<rect x="1" y="1" width="20" height="14" rx="1.5"/>'),I2=svg('<rect x="1" y="1" width="20" height="14" rx="1.5"/><path d="M1 8h20"/>'),I3=svg('<rect x="1" y="1" width="20" height="14" rx="1.5"/><path d="M11 1v14"/>');
+  const plane=a=>{if(!act(a))pick('eje',[['Esta versión de Synapse no permite cambiar el eje desde Kylapse']])};
+  const openLayout=()=>pick('lay',[['1 imagen',()=>layout('1x1'),I1],['2 imágenes, una sobre otra',()=>layout('2x1'),I2],['2 imágenes, lado a lado',()=>layout('1x2'),I3]]);
+  const openAxis=()=>pick('eje',[['Toca primero la imagen que quieres cambiar'],['Axial',()=>plane('Axial')],['Sagital',()=>plane('Sagittal')],['Coronal',()=>plane('Coronal')]]);
+  const openSeries=()=>{if(panel.style.display=='flex'&&panel.dataset.k=='ser'){hideP();return}panel.dataset.k='ser';
   const all=[...D.querySelectorAll('.SP_ThumbnailCell_L')].filter(c=>c.offsetParent&&c.querySelector('[draggable=true]')&&c.querySelector('.SP_DescriptionText'));
   const groups=new Map();all.forEach(c=>{const g=c.closest('.SP_StudyRow_L,.SP_StudyContainer_L')||D.body;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(c)});
   const rows=[...groups.keys()];panel.replaceChildren();
   rows.forEach((row,ri)=>{const cells=groups.get(row);if(!cells.length)return;
    if(rows.length>1){const h=D.createElement('div');h.className='h';h.textContent=ri==0?'Estudio actual':'Estudio previo '+ri;panel.append(h)}
-   cells.forEach(c=>{const d=c.querySelector('.SP_DescriptionText').textContent.trim();if(/^Marcadores$/i.test(d))return;const b=D.createElement('button');b.textContent=d;b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();panel.style.display='none';dropSeries(c)});panel.append(b)})});
+   cells.forEach(c=>{const d=c.querySelector('.SP_DescriptionText').textContent.trim();if(/^Marcadores$/i.test(d))return;const b=D.createElement('button');b.textContent=d;b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();hideP();dropSeries(c)});panel.append(b)})});
   if(!panel.children.length){const h=D.createElement('div');h.className='h';h.textContent='No encontré series';panel.append(h)}
-  panel.style.bottom=(bar.offsetHeight+8)+'px';panel.style.display='flex'};
+  showP()};
  const closeZoomDlg=()=>{for(const b of D.querySelectorAll('button,input[type=button],span,div')){if(b.children.length||!b.offsetParent||(b.textContent||b.value||'').trim()!='Cerrar')continue;let p=b.parentElement;for(let i=0;i<6&&p&&!/zoom/i.test(p.textContent);i++)p=p.parentElement;if(p&&/zoom/i.test(p.textContent))b.click()}};
  let n=0;const iv=setInterval(()=>{closeZoomDlg();if(++n>40)clearInterval(iv)},800);
  const px=v=>Math.round(v*S)+'px';
@@ -46,12 +57,15 @@ function viewerTools(){
   b.addEventListener('pointerdown',e=>{e.preventDefault();down();if(hold){t1=setTimeout(()=>{t2=setInterval(down,95)},350)}});
   ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,stop));b.addEventListener('click',e=>e.preventDefault());return b};
  const row=(...b)=>{const r=D.createElement('div');r.className='r';r.append(...b);return r};
+ const lay=mk('',0,openLayout);lay.innerHTML=svg('<rect x="1" y="1" width="9" height="14" rx="1.5"/><rect x="12" y="1" width="9" height="14" rx="1.5"/>').replace('margin-right:.5em','margin-right:.15em')+'▾';lay.setAttribute('aria-label','Distribución');
  bar.append(
   row(mk('Bone','p',()=>key('Numpad0','0',96)),mk('Abdomen','p',()=>key('Numpad1','1',97)),mk('Lung','p',()=>key('Numpad2','2',98)),mk('Inicial','p',()=>key('Numpad9','9',105))),
-  row(mk('▲',0,()=>key('ArrowUp','ArrowUp',38),1),mk('▼',0,()=>key('ArrowDown','ArrowDown',40),1),mk('Series',0,openSeries),mk('1 ▢',0,()=>layout('1x1')),mk('2 ▤',0,()=>layout('2x1')),mk('2 ◫',0,()=>layout('1x2')),mk('✕',0,()=>{bar.style.display='none';panel.style.display='none';pill.style.display='block';pill.dataset.t=Date.now()})));
+  row(mk('▲',0,()=>key('ArrowUp','ArrowUp',38),1),mk('▼',0,()=>key('ArrowDown','ArrowDown',40),1),mk('Series',0,openSeries),lay,mk('Eje ▾',0,openAxis),mk('✕',0,()=>{bar.style.display='none';hideP();pill.style.display='block';pill.dataset.t=Date.now()})));
  pill.addEventListener('click',()=>{if(Date.now()-(+pill.dataset.t||0)<700)return;bar.style.display='flex';pill.style.display='none'});
  D.body.append(panel,bar,pill);
  window.__SMV={show:()=>{bar.style.display='flex';pill.style.display='none'}};
+  setTimeout(()=>{if([...D.querySelectorAll('.TileView_IV')].some(vis))return;const mob=/Mobile/.test(navigator.userAgent);
+   pick('diag',[['El visor no cargó imágenes.'+(mob?' Synapse ve este navegador como celular: en Chrome activa "Sitio de escritorio" (menú ⋮) y vuelve a abrir el examen.':'')],['Datos para Alberto: '+[location.pathname,D.title,innerWidth+'x'+innerHeight,mob?'movil':'escritorio',(D.body.innerText||'').replace(/\s+/g,' ').trim().slice(0,160)].join(' | ')],['Cerrar',()=>{}]])},25000);
 }
 if(/^\/ImageViewer\//i.test(location.pathname)){viewerTools();return}
 if(window.__SM){window.__SM.open();return}
