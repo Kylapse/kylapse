@@ -5,7 +5,10 @@ function viewerTools(){
  let tile=null;const errs=[];
  addEventListener('error',e=>{const t=e.target;errs.push(t&&t!==window&&(t.src||t.href)?'recurso '+String(t.src||t.href).split('?')[0].split('/').slice(-2).join('/'):(e.message||'')+' '+String(e.filename||'').split('?')[0].split('/').pop()+':'+e.lineno+(e.error&&e.error.stack?' ['+fr(e.error.stack)+']':''))},true);
  const fr=st=>String(st||'').split('\n').filter(l=>/\bat\b/.test(l)).slice(0,4).map(l=>l.trim().replace(/^at /,'').replace(/https?:\/\/[^\s)]*\//g,'').replace(/\?[^:)\s]*/g,'')).join(' < ');
- const _jp=JSON.parse;JSON.parse=function(t,r){try{return _jp.call(this,t,r)}catch(x){errs.push('JSON('+(t==null?'null':String(t).length)+') '+fr(new Error().stack));throw x}};
+ const miss=[];try{const gi=Storage.prototype.getItem;Storage.prototype.getItem=function(k){const v=gi.call(this,k);if(v==null||v===''){miss.push((this===sessionStorage?'s:':'l:')+k);if(miss.length>8)miss.shift()}return v}}catch(e){}
+ try{const cc=window.dcm&&dcm.cc,gv=cc&&cc.getValue;if(gv)cc.getValue=function(k){const v=gv.apply(this,arguments);if(v==null||v===''){miss.push('dcm:'+k);if(miss.length>8)miss.shift()}return v}}catch(e){}
+ const _jp=JSON.parse;JSON.parse=function(t,r){try{return _jp.call(this,t,r)}catch(x){const st=new Error().stack;errs.push('JSON('+(t==null?'null':String(t).length)+') '+fr(st)+' vacias:'+miss.slice(-4).join(','));
+  if((t==null||t==='')&&/finishInitializeViewer/.test(st)){errs.push('parche aplicado');return {}}throw x}};
  addEventListener('unhandledrejection',e=>errs.push('promesa '+String(e.reason&&e.reason.message||e.reason).slice(0,90)));
  D.addEventListener('pointerdown',e=>{const t=e.target.closest&&e.target.closest('.TileView_IV');if(t)tile=t},true);
  const vis=t=>t&&t.isConnected&&t.offsetWidth>0;
