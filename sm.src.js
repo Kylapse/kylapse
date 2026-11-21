@@ -5,6 +5,8 @@ function viewerTools(){
  let tile=null;const errs=[];
  addEventListener('error',e=>{const t=e.target;errs.push(t&&t!==window&&(t.src||t.href)?'recurso '+String(t.src||t.href).split('?')[0].split('/').slice(-2).join('/'):(e.message||'')+' '+String(e.filename||'').split('?')[0].split('/').pop()+':'+e.lineno+(e.error&&e.error.stack?' ['+fr(e.error.stack)+']':''))},true);
  const fr=st=>String(st||'').split('\n').filter(l=>/\bat\b/.test(l)).slice(0,4).map(l=>l.trim().replace(/^at /,'').replace(/https?:\/\/[^\s)]*\//g,'').replace(/\?[^:)\s]*/g,'')).join(' < ');
+ try{const LMp=fujifilm.synapse.viewer.LayoutManager.prototype;if(LMp.initiallyOpenPowerJacket)LMp.initiallyOpenPowerJacket=function(){}}catch(e){}
+ try{const wo=window.open;window.open=function(u){if(/powerjacket/i.test(String(u||'')))return null;return wo.apply(this,arguments)}}catch(e){}
  let subs=0;try{const kc=JSON.parse(localStorage.getItem('kyl_ctx')||'null');if(kc&&kc.kv&&Date.now()-kc.t<15*60e3&&window.dcm&&dcm.cc){const P=Object.getPrototypeOf(dcm.cc),g0=P.getValue;
   P.getValue=function(k){const v=g0.apply(this,arguments);if((v==null||v==='')&&kc.kv[k]!=null){subs++;return kc.kv[k]}return v}}}catch(e){}
  const miss=[];try{const gi=Storage.prototype.getItem;Storage.prototype.getItem=function(k){const v=gi.call(this,k);if(v==null||v===''){miss.push((this===sessionStorage?'s:':'l:')+k);if(miss.length>8)miss.shift()}return v}}catch(e){}
