@@ -19,8 +19,10 @@ function viewerTools(){
   ev(src,'dragstart',sr.left+sr.width/2,sr.top+sr.height/2);setTimeout(()=>{ev(cv,'dragenter',x,y);ev(cv,'dragover',x,y);setTimeout(()=>{ev(cv,'drop',x,y);ev(src,'dragend',x,y)},40)},40)};
  const panel=D.createElement('div');panel.id='smvser';
  const openSeries=()=>{if(panel.style.display=='flex'){panel.style.display='none';return}
-  const rows=[...D.querySelectorAll('.SP_StudyRow_L')].filter(r=>r.offsetParent);panel.replaceChildren();
-  rows.forEach((row,ri)=>{const cells=[...row.querySelectorAll('.SP_ThumbnailCell_L')].filter(c=>c.querySelector('[draggable=true]')&&c.querySelector('.SP_DescriptionText'));if(!cells.length)return;
+  const all=[...D.querySelectorAll('.SP_ThumbnailCell_L')].filter(c=>c.offsetParent&&c.querySelector('[draggable=true]')&&c.querySelector('.SP_DescriptionText'));
+  const groups=new Map();all.forEach(c=>{const g=c.closest('.SP_StudyRow_L,.SP_StudyContainer_L')||D.body;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(c)});
+  const rows=[...groups.keys()];panel.replaceChildren();
+  rows.forEach((row,ri)=>{const cells=groups.get(row);if(!cells.length)return;
    if(rows.length>1){const h=D.createElement('div');h.className='h';h.textContent=ri==0?'Estudio actual':'Estudio previo '+ri;panel.append(h)}
    cells.forEach(c=>{const d=c.querySelector('.SP_DescriptionText').textContent.trim();if(/^Marcadores$/i.test(d))return;const b=D.createElement('button');b.textContent=d;b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();panel.style.display='none';dropSeries(c)});panel.append(b)})});
   if(!panel.children.length){const h=D.createElement('div');h.className='h';h.textContent='No encontré series';panel.append(h)}
@@ -143,15 +145,28 @@ function card(r){
  return c;
 }
 function openImgs(r,btn){
- const ds=r.dataSource||'SJDPACS';
- try{dcm.cc.beginTransaction();dcm.cc.setValue('currentPatientUuid',JSON.stringify({patientUuid:r.patientUUID,dataSource:ds}),'StudyChange');dcm.cc.setValue('currentStudyUuid',JSON.stringify({studyInstanceId:r.instanceEUID,dataSource:ds}),'StudyChange');dcm.cc.endTransaction()}
- catch(e){btn.textContent='Abre Kylapse desde la lista de trabajo';return}
+ const ds=r.dataSource||'SJDPACS',LID='/Synapse/All Studies',N='_NO_BROADCAST';
+ if(!window.dcm||!dcm.cc){btn.textContent='Abre Kylapse desde la lista de trabajo';return}
+ const w=window.__KYL_APP?null:window.open('about:blank','smviewer');
+ if(!window.__KYL_APP&&!w){btn.textContent='Chrome bloqueó la pestaña: permite ventanas emergentes';return}
+ const ctx=fetch('/api/WorkflowEngine/Worklist/PatientContext?identifier='+encodeURIComponent(LID)+'&global=true',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({AutoCompare:null,OnlyQR:false,Prefetch:true,Culture:'es-ES',Identifier:'AllStudiesGroupedByPatientUuid',PatientUUID:r.patientUUID,DataSource:ds,StudyUid:+r.studyUID||0,StudyInstanceUid:r.instanceEUID,TargetDataSources:[ds],FetchFastDs:true,Modality:r.procedureModality,Comparisons:null,CompareAll:true})}).catch(()=>{});
+ try{const cc=dcm.cc;cc.beginTransaction();
+  cc.setValue('uiReloadState',JSON.stringify({concurrencyDisplayed:true,pjOpener:0}),N);
+  cc.setValue('currentStudyData',JSON.stringify({modality:r.procedureModality,status:'Finalizado',studyRowIdentifier:null,updateWlHeaderStyle:true,workflowType:-1}),N);
+  cc.setValue('currentWorklistSourceId','0',N);cc.setValue('inFavorites','false',N);
+  cc.setValue('currentStudyUid',String(r.studyUID),N);cc.setValue('accessionNumber',String(r.risStudyEUID||''),N);
+  cc.setValue('isGlobal','false',N);cc.setValue('listIdentifier',LID,N);cc.setValue('isvna','false',N);
+  cc.setValue('CurrentDataSource',ds,N);cc.setValue('currentStudyBaseIdentifier',LID,N);cc.setValue('blockF8F9','false',N);
+  cc.setValue('currentPatientUuid',JSON.stringify({patientUuid:r.patientUUID,dataSource:ds}),N);
+  cc.setValue('currentStudyUuid',JSON.stringify({studyInstanceId:r.instanceEUID,dataSource:ds}),'StudyChange');
+  cc.endTransaction()}catch(e){}
  fetch('/ViewerService/api/study/prefetch?studyUid='+encodeURIComponent(r.instanceEUID)+'&dataSource='+encodeURIComponent(ds)).catch(()=>{});
- if(window.__KYL_APP){location.href='/ImageViewer/layout';return}
- const w=window.open('/ImageViewer/layout','smviewer');
- if(!w){btn.textContent='Chrome bloqueó la pestaña: permite ventanas emergentes';return}
- const code='('+viewerTools+')()';let k=0;
- const iv=setInterval(()=>{k++;try{if(w.closed||k>240){clearInterval(iv);return}const d=w.document;if(d.body&&d.querySelector('.TileView_IV')&&!w.__SMV){const s=d.createElement('script');s.textContent=code;d.body.append(s);s.remove();clearInterval(iv)}}catch(e){}},500);
+ ctx.then(()=>{
+  if(window.__KYL_APP){location.href='/ImageViewer/layout';return}
+  w.location.href='/ImageViewer/layout';
+  const code='('+viewerTools+')()';let k=0;
+  const iv=setInterval(()=>{k++;try{if(w.closed||k>240){clearInterval(iv);return}const d=w.document;if(d.body&&d.querySelector('.TileView_IV')&&!w.__SMV&&w.location.pathname.indexOf('/ImageViewer/')==0){const s=d.createElement('script');s.textContent=code;d.body.append(s);s.remove();clearInterval(iv)}}catch(e){}},500);
+ });
 }
 function acts(r){
  const b=[];
