@@ -3,7 +3,9 @@ function viewerTools(){
  if(window.__SMV){window.__SMV.show();return}
  const D=document,S=Math.max(1,Math.min(3,innerWidth/((screen&&screen.width)||innerWidth)));
  let tile=null;const errs=[];
- addEventListener('error',e=>{const t=e.target;errs.push(t&&t!==window&&(t.src||t.href)?'recurso '+String(t.src||t.href).split('?')[0].split('/').slice(-2).join('/'):(e.message||'')+' '+String(e.filename||'').split('?')[0].split('/').pop()+':'+e.lineno)},true);
+ addEventListener('error',e=>{const t=e.target;errs.push(t&&t!==window&&(t.src||t.href)?'recurso '+String(t.src||t.href).split('?')[0].split('/').slice(-2).join('/'):(e.message||'')+' '+String(e.filename||'').split('?')[0].split('/').pop()+':'+e.lineno+(e.error&&e.error.stack?' ['+fr(e.error.stack)+']':''))},true);
+ const fr=st=>String(st||'').split('\n').filter(l=>/\bat\b/.test(l)).slice(0,4).map(l=>l.trim().replace(/^at /,'').replace(/https?:\/\/[^\s)]*\//g,'').replace(/\?[^:)\s]*/g,'')).join(' < ');
+ const _jp=JSON.parse;JSON.parse=function(t,r){try{return _jp.call(this,t,r)}catch(x){errs.push('JSON('+(t==null?'null':String(t).length)+') '+fr(new Error().stack));throw x}};
  addEventListener('unhandledrejection',e=>errs.push('promesa '+String(e.reason&&e.reason.message||e.reason).slice(0,90)));
  D.addEventListener('pointerdown',e=>{const t=e.target.closest&&e.target.closest('.TileView_IV');if(t)tile=t},true);
  const vis=t=>t&&t.isConnected&&t.offsetWidth>0;
@@ -70,9 +72,9 @@ function viewerTools(){
    const c=D.createElement('canvas');const gl=(c.getContext('webgl2')?'gl2':c.getContext('webgl')?'gl1':'sin webgl');
    const rs=performance.getEntriesByType('resource');const bad=rs.filter(r=>r.responseStatus>=400).map(r=>r.responseStatus+' '+r.name.split('?')[0].split('/').slice(-2).join('/'));
    const ctx=Object.keys(localStorage).filter(k=>/currentStudyUid|currentPatientUuid|currentStudyData/i.test(k)).length;
-   return ['api:'+api,'mvm:'+mvm,'el:'+D.getElementsByTagName('*').length,'cv:'+D.querySelectorAll('canvas').length,'tiles:'+D.querySelectorAll('.TileView_IV').length,gl,'ctx:'+ctx,'res:'+rs.length,'fallas:'+(bad.slice(-5).join(', ')||'0'),'err:'+(errs.slice(-4).join(' / ')||'0'),innerWidth+'x'+innerHeight,/Mobile/.test(navigator.userAgent)?'movil':'escritorio'].join(' | ')};
+   return ['api:'+api,'mvm:'+mvm,'el:'+D.getElementsByTagName('*').length,'cv:'+D.querySelectorAll('canvas').length,'tiles:'+D.querySelectorAll('.TileView_IV').length,gl,'ctx:'+ctx,'res:'+rs.length,'fallas:'+(bad.slice(-5).join(', ')||'0'),'err:'+(errs.slice(-4).map(x=>x.slice(0,220)).join(' / ')||'0'),innerWidth+'x'+innerHeight,/Mobile/.test(navigator.userAgent)?'movil':'escritorio'].join(' | ')};
   setTimeout(()=>{if([...D.querySelectorAll('.TileView_IV')].some(vis))return;const mob=/Mobile/.test(navigator.userAgent);
-   pick('diag',[['El visor no cargó imágenes.'+(mob?' Synapse ve este navegador como celular: en Chrome activa "Sitio de escritorio" (menú ⋮) y vuelve a abrir el examen.':' Mándale una captura de esto a Alberto.')],['Datos: '+diag()],['Cerrar',()=>{}]])},25000);
+   pick('diag',[['El visor no cargó imágenes.'+(mob?' Synapse ve este navegador como celular: en Chrome activa "Sitio de escritorio" (menú ⋮) y vuelve a abrir el examen.':' Mándale una captura de esto a Alberto.')],['Datos: '+diag()],['Reintentar',()=>location.reload()],['Cerrar',()=>{}]])},25000);
 }
 if(/^\/ImageViewer\//i.test(location.pathname)){viewerTools();return}
 if(window.__SM){window.__SM.open();return}
