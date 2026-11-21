@@ -5,6 +5,8 @@ function viewerTools(){
  let tile=null;const errs=[];
  addEventListener('error',e=>{const t=e.target;errs.push(t&&t!==window&&(t.src||t.href)?'recurso '+String(t.src||t.href).split('?')[0].split('/').slice(-2).join('/'):(e.message||'')+' '+String(e.filename||'').split('?')[0].split('/').pop()+':'+e.lineno+(e.error&&e.error.stack?' ['+fr(e.error.stack)+']':''))},true);
  const fr=st=>String(st||'').split('\n').filter(l=>/\bat\b/.test(l)).slice(0,4).map(l=>l.trim().replace(/^at /,'').replace(/https?:\/\/[^\s)]*\//g,'').replace(/\?[^:)\s]*/g,'')).join(' < ');
+ let subs=0;try{const kc=JSON.parse(localStorage.getItem('kyl_ctx')||'null');if(kc&&kc.kv&&Date.now()-kc.t<15*60e3&&window.dcm&&dcm.cc){const P=Object.getPrototypeOf(dcm.cc),g0=P.getValue;
+  P.getValue=function(k){const v=g0.apply(this,arguments);if((v==null||v==='')&&kc.kv[k]!=null){subs++;return kc.kv[k]}return v}}}catch(e){}
  const miss=[];try{const gi=Storage.prototype.getItem;Storage.prototype.getItem=function(k){const v=gi.call(this,k);if(v==null||v===''){miss.push((this===sessionStorage?'s:':'l:')+k);if(miss.length>8)miss.shift()}return v}}catch(e){}
  try{const cc=window.dcm&&dcm.cc,gv=cc&&cc.getValue;if(gv)cc.getValue=function(k){const v=gv.apply(this,arguments);if(v==null||v===''){miss.push('dcm:'+k);if(miss.length>8)miss.shift()}return v}}catch(e){}
  const _jp=JSON.parse;JSON.parse=function(t,r){try{return _jp.call(this,t,r)}catch(x){const st=new Error().stack;errs.push('JSON('+(t==null?'null':String(t).length)+') '+fr(st)+' vacias:'+miss.slice(-4).join(','));
@@ -75,7 +77,7 @@ function viewerTools(){
    const c=D.createElement('canvas');const gl=(c.getContext('webgl2')?'gl2':c.getContext('webgl')?'gl1':'sin webgl');
    const rs=performance.getEntriesByType('resource');const bad=rs.filter(r=>r.responseStatus>=400).map(r=>r.responseStatus+' '+r.name.split('?')[0].split('/').slice(-2).join('/'));
    const ctx=Object.keys(localStorage).filter(k=>/currentStudyUid|currentPatientUuid|currentStudyData/i.test(k)).length;
-   return ['api:'+api,'mvm:'+mvm,'el:'+D.getElementsByTagName('*').length,'cv:'+D.querySelectorAll('canvas').length,'tiles:'+D.querySelectorAll('.TileView_IV').length,gl,'ctx:'+ctx,'res:'+rs.length,'fallas:'+(bad.slice(-5).join(', ')||'0'),'err:'+(errs.slice(-4).map(x=>x.slice(0,360)).join(' / ')||'0'),innerWidth+'x'+innerHeight,/Mobile/.test(navigator.userAgent)?'movil':'escritorio'].join(' | ')};
+   return ['api:'+api,'mvm:'+mvm,'el:'+D.getElementsByTagName('*').length,'cv:'+D.querySelectorAll('canvas').length,'tiles:'+D.querySelectorAll('.TileView_IV').length,gl,'ctx:'+ctx,'res:'+rs.length,'fallas:'+(bad.slice(-5).join(', ')||'0'),'sust:'+subs,'err:'+(errs.slice(-4).map(x=>x.slice(0,360)).join(' / ')||'0'),innerWidth+'x'+innerHeight,/Mobile/.test(navigator.userAgent)?'movil':'escritorio'].join(' | ')};
   setTimeout(()=>{if([...D.querySelectorAll('.TileView_IV')].some(vis))return;const mob=/Mobile/.test(navigator.userAgent);
    pick('diag',[['El visor no cargó imágenes.'+(mob?' Synapse ve este navegador como celular: en Chrome activa "Sitio de escritorio" (menú ⋮) y vuelve a abrir el examen.':' Mándale una captura de esto a Alberto.')],['Datos: '+diag()],['Reintentar',()=>location.reload()],['Cerrar',()=>{}]])},25000);
 }
@@ -197,17 +199,16 @@ function openImgs(r,btn){
  const w=window.__KYL_APP?null:window.open('about:blank','smviewer');
  if(!window.__KYL_APP&&!w){btn.textContent='Chrome bloqueó la pestaña: permite ventanas emergentes';return}
  const ctx=fetch('/api/WorkflowEngine/Worklist/PatientContext?identifier='+encodeURIComponent(LID)+'&global=true',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({AutoCompare:null,OnlyQR:false,Prefetch:true,Culture:'es-ES',Identifier:'AllStudiesGroupedByPatientUuid',PatientUUID:r.patientUUID,DataSource:ds,StudyUid:+r.studyUID||0,StudyInstanceUid:r.instanceEUID,TargetDataSources:[ds],FetchFastDs:true,Modality:r.procedureModality,Comparisons:null,CompareAll:true})}).catch(()=>{});
+ const DK=(dcm.clinicalContext&&dcm.clinicalContext.DefaultKeys)||{},pid=JSON.stringify({patientUuid:r.patientUUID,dataSource:ds});
+ const kv={uiReloadState:JSON.stringify({concurrencyDisplayed:true,pjOpener:0}),currentStudyData:JSON.stringify({modality:r.procedureModality,status:'Finalizado',studyRowIdentifier:null,updateWlHeaderStyle:true,workflowType:-1}),
+  currentWorklistSourceId:'0',inFavorites:'false',currentStudyUid:String(r.studyUID),accessionNumber:String(r.risStudyEUID||''),isGlobal:'false',listIdentifier:LID,isvna:'false',
+  CurrentDataSource:ds,currentStudyBaseIdentifier:LID,blockF8F9:'false',currentPatientUuid:pid};
+ if(DK.CURRENTPATIENTID)kv[DK.CURRENTPATIENTID]=pid;
+ const su=JSON.stringify({studyInstanceId:r.instanceEUID,dataSource:ds});
+ try{localStorage.setItem('kyl_ctx',JSON.stringify({t:Date.now(),kv:Object.assign({currentStudyUuid:su},kv)}))}catch(e){}
  try{const cc=dcm.cc;cc.beginTransaction();
-  cc.setValue('uiReloadState',JSON.stringify({concurrencyDisplayed:true,pjOpener:0}),N);
-  cc.setValue('currentStudyData',JSON.stringify({modality:r.procedureModality,status:'Finalizado',studyRowIdentifier:null,updateWlHeaderStyle:true,workflowType:-1}),N);
-  cc.setValue('currentWorklistSourceId','0',N);cc.setValue('inFavorites','false',N);
-  cc.setValue('currentStudyUid',String(r.studyUID),N);cc.setValue('accessionNumber',String(r.risStudyEUID||''),N);
-  cc.setValue('isGlobal','false',N);cc.setValue('listIdentifier',LID,N);cc.setValue('isvna','false',N);
-  cc.setValue('CurrentDataSource',ds,N);cc.setValue('currentStudyBaseIdentifier',LID,N);cc.setValue('blockF8F9','false',N);
-  cc.setValue('currentPatientUuid',JSON.stringify({patientUuid:r.patientUUID,dataSource:ds}),N);
-  const DK=(dcm.clinicalContext&&dcm.clinicalContext.DefaultKeys)||{},pid=JSON.stringify({patientUuid:r.patientUUID,dataSource:ds});
-  [...new Set([DK.CURRENTPATIENTID,'currentPatientId'].filter(Boolean))].forEach(k=>cc.setValue(k,pid,N));
-  cc.setValue('currentStudyUuid',JSON.stringify({studyInstanceId:r.instanceEUID,dataSource:ds}),'StudyChange');
+  for(const k in kv)cc.setValue(k,kv[k],N);
+  cc.setValue('currentStudyUuid',su,'StudyChange');
   cc.endTransaction()}catch(e){}
  fetch('/ViewerService/api/study/prefetch?studyUid='+encodeURIComponent(r.instanceEUID)+'&dataSource='+encodeURIComponent(ds)).catch(()=>{});
  ctx.then(()=>{
