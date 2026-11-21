@@ -121,7 +121,7 @@ const chips=$('div',{class:'chips'});
 const list=$('div',{class:'list'},$('div',{class:'msg'},'Ingresa un RUT con o sin puntos y guion.'));
 const root=$('div',{id:'sm'},$('style',{},css),
  $('div',{class:'top'},
-  $('div',{class:'row',style:'margin-bottom:9px'},$('div',{class:'brand'},'KYL',$('span',{style:'color:#ED1A3A'},'A'),'PSE',$('span',{class:'hs'},' · HSJD')),$('button',{class:'x',title:'Cerrar',on:{click:close}},'×')),
+  $('div',{class:'row',style:'margin-bottom:9px'},$('div',{class:'brand'},'KYL',$('span',{style:'color:#ED1A3A'},'A'),'PSE',$('span',{class:'hs'},' · '+(/^sjdpacs\./.test(location.host)?'HSJD':/^smnpacs/.test(location.host)?'SSMN':location.host.split('.')[0].toUpperCase()))),window.__KYL_APP?$('button',{class:'upd',on:{click:()=>{location.href='kylapse://hospital'}}},'Hospital'):null,$('button',{class:'x',title:'Cerrar',on:{click:close}},'×')),
   $('div',{class:'row'},inp,goBtn),chips),list);
 function msg(t,err){list.replaceChildren($('div',{class:'msg'+(err?' err':'')},t))}
 function renderChips(){const mods=['Todas',...new Set(rows.map(r=>r.procedureModality||'?'))];chips.replaceChildren(...mods.map(m=>$('button',{class:'chip'+(m==modSel?' on':''),on:{click:()=>{modSel=m;renderChips();renderList()}}},m+(m=='Todas'?' ('+rows.length+')':''))))}

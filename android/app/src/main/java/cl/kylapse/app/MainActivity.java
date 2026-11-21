@@ -16,6 +16,9 @@ import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceResponse;
 import android.widget.FrameLayout;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.content.SharedPreferences;
 import android.widget.TextView;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -45,8 +48,18 @@ import java.util.regex.Pattern;
  * La app no guarda ni envía datos: el inicio de sesión y las imágenes van directo a Synapse.
  */
 public class MainActivity extends Activity {
-    private static final String HOST = "sjdpacs.synapsetimed.cl";
-    private static final String START = "https://" + HOST + "/WorkflowUI/";
+    private static final String[][] HOSPITALS = {
+        {"Hospital San Juan de Dios", "sjdpacs.synapsetimed.cl"},
+        {"Servicio de Salud Metropolitano Norte", "smnpacs5.synapsetimed.cl"},
+    };
+    private volatile String host = "";
+
+    private String start() { return "https://" + host + "/WorkflowUI/"; }
+    private static boolean isSynapse(String h) { return h != null && h.endsWith(".synapsetimed.cl"); }
+    /** La pantalla de inicio de sesión de Synapse se ve muy chica en el teléfono: se acerca a su tarjeta central. */
+    private static final String ZOOM_LOGIN =
+        "(function(){var m=document.querySelector('meta[name=viewport]');if(!m){m=document.createElement('meta');m.name='viewport';document.head.appendChild(m)}" +
+        "m.content='width=560';})();";
     private static final String LOADER =
         "(function(){window.__KYL_APP=1;if(window.__SM||window.__SMV||window.__KYL_LOADING)return;" +
         "window.__KYL_LOADING=1;var s=document.createElement('script');" +
@@ -55,6 +68,8 @@ public class MainActivity extends Activity {
         "(document.body||document.documentElement).appendChild(s)})();";
 
     private WebView web;
+    private SharedPreferences prefs;
+    private LinearLayout chooser;
     private TextView status;
     private boolean failed = false;
     private final ArrayDeque<String> console = new ArrayDeque<>();
@@ -134,9 +149,10 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri u = req.getUrl();
+                if ("kylapse".equals(u.getScheme())) { showChooser(); return true; }
                 noteAuth(u);
                 String h = u.getHost();
-                if (h != null && (h.equals(HOST) || h.endsWith(".synapsetimed.cl"))) return false;
+                if (isSynapse(h)) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
                 return true;
             }
@@ -181,8 +197,12 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (state != null) web.restoreState(state);
-        else web.loadUrl(START);
+        prefs = getSharedPreferences("kylapse", MODE_PRIVATE);
+        host = prefs.getString("host", "");
+        buildChooser(root);
+        if (state != null && !host.isEmpty()) web.restoreState(state);
+        else if (host.isEmpty()) showChooser();
+        else web.loadUrl(start());
         handler.postDelayed(slow, 15000);
     }
 
@@ -219,7 +239,7 @@ public class MainActivity extends Activity {
         try {
             if (!req.isForMainFrame() || !"GET".equalsIgnoreCase(req.getMethod())) return null;
             Uri u = req.getUrl();
-            if (!HOST.equals(u.getHost())) return null;
+            if (!isSynapse(u.getHost())) return null;
             String path = u.getPath() == null ? "" : u.getPath().toLowerCase();
             if (!(path.startsWith("/workflowui") || path.startsWith("/imageviewer"))) return null;
 
@@ -332,6 +352,52 @@ public class MainActivity extends Activity {
         return Uri.parse(raw + (raw.contains("?") ? "&" : "?") + "nonce=" + nonce);
     }
 
+    /** Pantalla para elegir el hospital (se recuerda; se puede cambiar desde el botón Hospital de Kylapse). */
+    private void buildChooser(FrameLayout root) {
+        chooser = new LinearLayout(this);
+        chooser.setOrientation(LinearLayout.VERTICAL);
+        chooser.setGravity(Gravity.CENTER);
+        chooser.setPadding(70, 70, 70, 70);
+        chooser.setBackgroundColor(Color.parseColor("#122221"));
+        chooser.setClickable(true);
+        TextView t = new TextView(this);
+        t.setText("KYLAPSE\n\nElige tu Synapse");
+        t.setTextColor(Color.parseColor("#E6EEEC"));
+        t.setTextSize(20);
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(0, 0, 0, 50);
+        chooser.addView(t);
+        for (String[] h : HOSPITALS) {
+            Button b = new Button(this);
+            b.setText(h[0]);
+            b.setAllCaps(false);
+            b.setTextSize(17);
+            b.setTextColor(Color.WHITE);
+            b.setBackgroundColor(Color.parseColor("#38946D"));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+            lp.setMargins(0, 18, 0, 18);
+            b.setPadding(30, 40, 30, 40);
+            final String target = h[1];
+            b.setOnClickListener(v -> chooseHospital(target));
+            chooser.addView(b, lp);
+        }
+        chooser.setVisibility(View.GONE);
+        root.addView(chooser, new FrameLayout.LayoutParams(-1, -1));
+    }
+
+    private void showChooser() {
+        chooser.setVisibility(View.VISIBLE);
+        status.setVisibility(View.GONE);
+    }
+
+    private void chooseHospital(String h) {
+        host = h;
+        prefs.edit().putString("host", h).apply();
+        chooser.setVisibility(View.GONE);
+        status.setVisibility(View.VISIBLE);
+        retry();
+    }
+
     private void fail(String msg) {
         failed = true;
         status.setTextSize(13);
@@ -346,7 +412,7 @@ public class MainActivity extends Activity {
         status.setTextSize(17);
         status.setGravity(Gravity.CENTER);
         status.setText("KYLAPSE\n\nAbriendo Synapse…");
-        web.loadUrl(START);
+        web.loadUrl(start());
         handler.removeCallbacks(slow);
         handler.postDelayed(slow, 15000);
     }
@@ -355,7 +421,9 @@ public class MainActivity extends Activity {
         if (url == null) return;
         Uri u = Uri.parse(url);
         String path = u.getPath() == null ? "" : u.getPath().toLowerCase();
-        if (!HOST.equals(u.getHost())) return;
+        if (!isSynapse(u.getHost())) return;
+        String p0 = u.getPath() == null ? "" : u.getPath().toLowerCase();
+        if (p0.startsWith("/synapsesignon")) web.evaluateJavascript(ZOOM_LOGIN, null);
         boolean worklist = path.startsWith("/workflowui") && !path.contains("powerjacket");
         boolean viewer = path.startsWith("/imageviewer/");
         if (worklist || viewer) web.evaluateJavascript(LOADER, null);
@@ -365,7 +433,7 @@ public class MainActivity extends Activity {
         if (url == null) return;
         Uri u = Uri.parse(url);
         String path = u.getPath() == null ? "" : u.getPath().toLowerCase();
-        if (HOST.equals(u.getHost()) && path.startsWith("/workflowui")) {
+        if (isSynapse(u.getHost()) && path.startsWith("/workflowui")) {
             WebSettings s = web.getSettings();
             if (!desktopUA.equals(s.getUserAgentString())) { s.setUserAgentString(desktopUA); currentUA = desktopUA; }
         }
@@ -400,7 +468,8 @@ public class MainActivity extends Activity {
     @Override
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
-        if (web.canGoBack()) web.goBack();
+        if (chooser.getVisibility() == View.VISIBLE && !host.isEmpty()) chooser.setVisibility(View.GONE);
+        else if (web.canGoBack()) web.goBack();
         else super.onBackPressed();
     }
 }
