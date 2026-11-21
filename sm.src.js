@@ -75,7 +75,7 @@ function viewerTools(){
    const c=D.createElement('canvas');const gl=(c.getContext('webgl2')?'gl2':c.getContext('webgl')?'gl1':'sin webgl');
    const rs=performance.getEntriesByType('resource');const bad=rs.filter(r=>r.responseStatus>=400).map(r=>r.responseStatus+' '+r.name.split('?')[0].split('/').slice(-2).join('/'));
    const ctx=Object.keys(localStorage).filter(k=>/currentStudyUid|currentPatientUuid|currentStudyData/i.test(k)).length;
-   return ['api:'+api,'mvm:'+mvm,'el:'+D.getElementsByTagName('*').length,'cv:'+D.querySelectorAll('canvas').length,'tiles:'+D.querySelectorAll('.TileView_IV').length,gl,'ctx:'+ctx,'res:'+rs.length,'fallas:'+(bad.slice(-5).join(', ')||'0'),'err:'+(errs.slice(-4).map(x=>x.slice(0,220)).join(' / ')||'0'),innerWidth+'x'+innerHeight,/Mobile/.test(navigator.userAgent)?'movil':'escritorio'].join(' | ')};
+   return ['api:'+api,'mvm:'+mvm,'el:'+D.getElementsByTagName('*').length,'cv:'+D.querySelectorAll('canvas').length,'tiles:'+D.querySelectorAll('.TileView_IV').length,gl,'ctx:'+ctx,'res:'+rs.length,'fallas:'+(bad.slice(-5).join(', ')||'0'),'err:'+(errs.slice(-4).map(x=>x.slice(0,360)).join(' / ')||'0'),innerWidth+'x'+innerHeight,/Mobile/.test(navigator.userAgent)?'movil':'escritorio'].join(' | ')};
   setTimeout(()=>{if([...D.querySelectorAll('.TileView_IV')].some(vis))return;const mob=/Mobile/.test(navigator.userAgent);
    pick('diag',[['El visor no cargó imágenes.'+(mob?' Synapse ve este navegador como celular: en Chrome activa "Sitio de escritorio" (menú ⋮) y vuelve a abrir el examen.':' Mándale una captura de esto a Alberto.')],['Datos: '+diag()],['Reintentar',()=>location.reload()],['Cerrar',()=>{}]])},25000);
 }
