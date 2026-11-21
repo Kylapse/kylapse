@@ -93,7 +93,17 @@ const css=`
 const norm=s=>String(s||'').toUpperCase().replace(/[^0-9K]/g,'').replace(/^0+/,'');
 function dv(b){let s=0,m=2;for(let i=b.length-1;i>=0;i--){s+=+b[i]*m;m=m==7?2:m+1}const r=11-s%11;return r==11?'0':r==10?'K':String(r)}
 const post=(p,b)=>fetch('/api/WorkflowEngine/Worklist/'+p+'?identifier='+ID,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()});
-const mk=v=>({Filters:[{Column:'externalPatientID',Operator:'begins-with',Value:v,Group:1,DataType:'string',SecondValue:null}],Sorts:[{Column:'displayTimestamp',Direction:-1}],Culture:'es-ES',UserLogin:USER,WorklistType:0,TargetDataSources:[]});
+const mk=(v,col)=>({Filters:[{Column:col||'externalPatientID',Operator:'begins-with',Value:v,Group:1,DataType:'string',SecondValue:null}],Sorts:[{Column:'displayTimestamp',Direction:-1}],Culture:'es-ES',UserLogin:USER,WorklistType:0,TargetDataSources:[]});
+async function qName(v){const r=await post('Query',Object.assign({ForceRefresh:true},mk(v,'patientFullName')));if(!r.Succeeded)throw new Error('Hay demasiados pacientes con ese nombre. Escribe los dos apellidos y el nombre, por ejemplo: Muñoz Pérez, Juan.');const o=[];for(let off=0;off<Math.min(r.NumResults,1000);off+=500){const d=await post('Retrieve',Object.assign({Length:500,Offset:off,SessionID:r.SessionID},mk(v,'patientFullName')));o.push(...d.Records)}return o}
+const isRut=v=>/^\d{6,9}[\dkK]?$/.test(v.replace(/[\s.\-]/g,''));
+async function searchName(raw){
+ let v=raw.trim().replace(/\s+/g,' ').replace(/\s*,\s*/g,', ');
+ let res=await qName(v);
+ const w=v.split(' ');
+ if(!res.length&&!v.includes(',')&&w.length>=3)res=await qName(w[0]+' '+w[1]+', '+w.slice(2).join(' '));
+ const seen=new Map();res.forEach(x=>{if(!seen.has(x.instanceEUID))seen.set(x.instanceEUID,x)});
+ return [...seen.values()].sort((a,b)=>String(b.displayTimestamp).localeCompare(a.displayTimestamp));
+}
 async function q(v){const r=await post('Query',Object.assign({ForceRefresh:true},mk(v)));if(!r.Succeeded)return[];const o=[];for(let off=0;off<r.NumResults;off+=500){const d=await post('Retrieve',Object.assign({Length:500,Offset:off,SessionID:r.SessionID},mk(v)));o.push(...d.Records)}return o}
 async function search(raw){
  const n=norm(raw);if(n.length<2)throw new Error('RUT incompleto');
@@ -117,20 +127,31 @@ async function report(iuid,ds){
 const fdate=s=>{const d=new Date(s);if(isNaN(d))return s||'';const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes())};
 // ---------- UI ----------
 let rows=[],modSel='Todas';
-const inp=$('input',{type:'text',inputmode:'text',autocomplete:'off',autocapitalize:'characters',spellcheck:'false',placeholder:'RUT del paciente'});
+const inp=$('input',{type:'text',inputmode:'text',autocomplete:'off',autocapitalize:'words',spellcheck:'false',placeholder:'RUT o Apellidos, Nombre'});
 const goBtn=$('button',{class:'go'},'Buscar');
 const chips=$('div',{class:'chips'});
-const list=$('div',{class:'list'},$('div',{class:'msg'},'Ingresa un RUT con o sin puntos y guion.'));
+const list=$('div',{class:'list'},$('div',{class:'msg'},'Busca por RUT (con o sin puntos y guion) o por nombre: Apellido Paterno Apellido Materno, Nombres.'));
 const root=$('div',{id:'sm'},$('style',{},css),
  $('div',{class:'top'},
-  $('div',{class:'row',style:'margin-bottom:9px'},$('div',{class:'brand'},'KYL',$('span',{style:'color:#ED1A3A'},'A'),'PSE',$('span',{class:'hs'},' · '+(/^sjdpacs\./.test(location.host)?'HSJD':/^smnpacs/.test(location.host)?'SSMN':location.host.split('.')[0].toUpperCase()))),window.__KYL_APP?$('button',{class:'upd',on:{click:()=>{location.href='kylapse://hospital'}}},'Hospital'):null,$('button',{class:'x',title:'Cerrar',on:{click:close}},'×')),
+  $('div',{class:'row',style:'margin-bottom:9px'},$('div',{class:'brand'},'KYL',$('span',{style:'color:#ED1A3A'},'A'),'PSE',$('span',{class:'hs'},' · '+(/^sjdpacs\./.test(location.host)?'HSJD':/^smnpacs/.test(location.host)?'SSMN':location.host.split('.')[0].toUpperCase()))),window.__KYL_APP?$('button',{class:'upd',on:{click:()=>{location.href='kylapse://hospital'}}},'Hospital'):null),
   $('div',{class:'row'},inp,goBtn),chips),list);
 function msg(t,err){list.replaceChildren($('div',{class:'msg'+(err?' err':'')},t))}
 function renderChips(){const mods=['Todas',...new Set(rows.map(r=>r.procedureModality||'?'))];chips.replaceChildren(...mods.map(m=>$('button',{class:'chip'+(m==modSel?' on':''),on:{click:()=>{modSel=m;renderChips();renderList()}}},m+(m=='Todas'?' ('+rows.length+')':''))))}
+let allRows=[];
+const pkey=r=>r.patientUUID||r.externalPatientID||r.patientFullName;
+function renderPatients(){
+ const g=new Map();allRows.forEach(r=>{const k=pkey(r);if(!g.has(k))g.set(k,[]);g.get(k).push(r)});
+ chips.replaceChildren();
+ list.replaceChildren($('div',{class:'pt'},$('b',{},g.size+' pacientes'),'Elige uno'),...[...g.values()].map(rs=>{const r=rs[0];
+  return $('div',{class:'card'},$('div',{class:'hd',on:{click:()=>{rows=rs;modSel='Todas';renderChips();renderList()}}},
+   $('div',{},$('div',{class:'desc'},r.patientFullName||'(sin nombre)'),$('div',{class:'meta'},(r.externalPatientID||'')+' · '+rs.length+' estudio(s) · último '+fdate(r.displayTimestamp).split(' ')[0]))))}));
+ list.scrollTop=0;
+}
 function renderList(){
  const sel=rows.filter(r=>modSel=='Todas'||r.procedureModality==modSel);
  const p=rows[0];
- list.replaceChildren($('div',{class:'pt'},$('b',{},p.patientFullName||''),sel.length+' estudio(s)'),...sel.map(card));
+ const multi=new Set(allRows.map(pkey)).size>1;
+ list.replaceChildren(...(multi?[$('button',{class:'chip',style:'margin:0 4px 8px',on:{click:renderPatients}},'← Pacientes')]:[]),$('div',{class:'pt'},$('b',{},p.patientFullName||''),(p.externalPatientID?p.externalPatientID+' · ':'')+sel.length+' estudio(s)'),...sel.map(card));
  list.scrollTop=0;
 }
 function card(r){
@@ -175,7 +196,10 @@ function acts(r){
  return $('div',{class:'acts'},b)}
 async function run(){
  const v=inp.value.trim();if(!v)return;inp.blur();msg('Buscando…');try{sessionStorage.setItem('kyl_rut',v)}catch(e){}
- try{rows=await search(v);modSel='Todas';if(!rows.length){chips.replaceChildren();msg('Sin estudios para ese RUT.');return}renderChips();renderList()}
+ try{const byRut=isRut(v);allRows=byRut?await search(v):await searchName(v);rows=allRows;modSel='Todas';
+  if(!rows.length){chips.replaceChildren();msg(byRut?'Sin estudios para ese RUT.':'Sin pacientes con ese nombre. Escríbelo como Apellido Paterno Apellido Materno, Nombres.');return}
+  if(new Set(allRows.map(pkey)).size>1){renderPatients();return}
+  renderChips();renderList()}
  catch(e){chips.replaceChildren();msg(/JSON|HTTP 40/.test(e.message)?'La sesión de Synapse expiró. Vuelve a iniciar sesión y abre Kylapse de nuevo.':e.message,true)}
 }
 goBtn.onclick=run;inp.addEventListener('keydown',e=>{if(e.key=='Enter')run()});
